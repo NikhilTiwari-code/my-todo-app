@@ -32,9 +32,10 @@ export async function POST(request: Request) {
         if (existingUser) {
             return NextResponse.json({ message: "User already exists" }, { status: 400 });
         }
+
         // hash password method i have used is bcryptjs
-       // const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ name, email,  password });
+       const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({ name, email, password: hashedPassword });
         await newUser.save();
        
         return NextResponse.json({ message: "User registered successfully" }, { status: 201 });

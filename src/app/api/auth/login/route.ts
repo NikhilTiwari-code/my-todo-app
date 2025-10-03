@@ -28,24 +28,24 @@ export async function POST(request: Request) {
   try {
     await connectToDb();
     const user = await User.findOne({ email });
+
     if (!user) {
       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
     }
 
-    console.log("User found:", user.email);
+
+    console.log("User found:", user);
     console.log("Stored password hash:", user.password);
     console.log("Entered password:", password);
 
-    // Guard: if client accidentally sent a bcrypt hash instead of a plaintext password
-    
 
-    // Compare plaintext password against stored hash
-   // const isPasswordValid = await bcrypt.compare(password as string, user.password);
-    // console.log("Password valid:", isPasswordValid);
+    //Compare plaintext password against stored hash
+    const isPasswordValid = await bcrypt.compare(password , user.password);
+    console.log("Password valid:", isPasswordValid);
 
-    // if (!isPasswordValid) {
-    //   return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
-    // }
+    if (!isPasswordValid) {
+      return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
+    }
 
     const tokenData = {
       id: user._id,
