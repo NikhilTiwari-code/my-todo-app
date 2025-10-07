@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
@@ -13,35 +13,43 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
-  const [mounted, setMounted] = useState(false);
 
-  // Load theme from localStorage on mount
-  useEffect(() => {
-    setMounted(true);
-    const savedTheme = localStorage.getItem("theme") as Theme | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.classList.toggle("dark", savedTheme === "dark");
-    } else {
-      // Check system preference
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      const initialTheme = prefersDark ? "dark" : "light";
-      setTheme(initialTheme);
-      document.documentElement.classList.toggle("dark", prefersDark);
+  const applyTheme = useCallback((value: Theme) => {
+    const root = document.documentElement;
+    const body = document.body;
+    const isDark = value === "dark";
+
+    root.classList.toggle("dark", isDark);
+    root.style.colorScheme = isDark ? "dark" : "light";
+
+    if (body) {
+      body.classList.toggle("dark", isDark);
     }
   }, []);
 
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
+  // Load theme from localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as Theme | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+      applyTheme(savedTheme);
+      return;
+    }
 
-  // Prevent flash of wrong theme
-  if (!mounted) {
-    return null;
-  }
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const initialTheme = prefersDark ? "dark" : "light";
+    setTheme(initialTheme);
+    applyTheme(initialTheme);
+  }, [applyTheme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const nextTheme: Theme = prev === "light" ? "dark" : "light";
+      localStorage.setItem("theme", nextTheme);
+      applyTheme(nextTheme);
+      return nextTheme;
+    });
+  };
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
