@@ -10,22 +10,12 @@ class ApiClient {
   }
 
   /**
-   * Get auth token from localStorage
-   */
-  private getToken(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("token");
-  }
-
-  /**
    * Generic fetch wrapper with auth
    */
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const token = this.getToken();
-
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -39,13 +29,10 @@ class ApiClient {
       });
     }
 
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       ...options,
       headers,
+      credentials: "include", // Send cookies automatically
     });
 
     // Handle non-JSON responses (like 204 No Content)

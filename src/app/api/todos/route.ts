@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import connectToDb from "@/utils/db";
 import Todo from "@/models/todos.model";
 import { getUserIdFromRequest } from "@/utils/auth";
+import { createTodoSchema, todoQuerySchema, formatZodError } from "@/lib/validations";
+import { cache, cacheKeys } from "@/lib/redis";
+import crypto from "crypto";
 
  
 /**
@@ -29,15 +32,55 @@ export async function GET(request: Request) {
   try {
     await connectToDb();
 
-    // Parse query params
+    // Parse and validate query params
     const { searchParams } = new URL(request.url);
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
-    const q = searchParams.get("q")?.trim() || "";
-    const isCompletedParam = searchParams.get("isCompleted");
-    const priority = searchParams.get("priority");
-    const sortBy = searchParams.get("sortBy") || "createdAt";
-    const order = searchParams.get("order") === "asc" ? 1 : -1;
+    const queryData = {
+      page: searchParams.get("page"),
+      limit: searchParams.get("limit"),
+      q: searchParams.get("q"),
+      isCompleted: searchParams.get("isCompleted"),
+      priority: searchParams.get("priority"),
+      sortBy: searchParams.get("sortBy"),
+      order: searchParams.get("order"),
+    };
+
+    const validation = todoQuerySchema.safeParse(queryData);
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Invalid query parameters",
+            details: formatZodError(validation.error),
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    const { page, limit, q, isCompleted, priority, sortBy, order } = validation.data;
+
+    // Provide defaults for sortBy and order
+    const finalSortBy = sortBy || "createdAt";
+    const finalOrder = order || "desc";
+    
+    // Generate cache key based on query params
+    const queryHash = crypto
+      .createHash("md5")
+      .update(JSON.stringify({ page, limit, q, isCompleted, priority, sortBy: finalSortBy, order: finalOrder }))
+      .digest("hex");
+    const cacheKey = cacheKeys.todosList(auth.userId, queryHash);
+
+    // Try to get from cache
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, {
+        status: 200,
+        headers: {
+          "X-Cache": "HIT",
+        },
+      });
+    }
 
     
     // Build filter
@@ -52,22 +95,21 @@ export async function GET(request: Request) {
     }
 
     // isCompleted filter
-    if (isCompletedParam !== null && isCompletedParam !== "") {
-      filter.isCompleted = isCompletedParam === "true";
+    if (isCompleted !== undefined) {
+      filter.isCompleted = isCompleted;
     }
 
     // Priority filter
-    if (priority && ["low", "medium", "high"].includes(priority)) {
+    if (priority) {
       filter.priority = priority;
     }
 
     // Build sort
-    const sortFields: Record<string, 1 | -1> = {};
-    if (["createdAt", "dueDate", "title"].includes(sortBy)) {
-      sortFields[sortBy] = order as 1 | -1;
-    } else {
-      sortFields.createdAt = -1; // fallback
-    }
+    const sortOrder = finalOrder === "asc" ? 1 : -1;
+    const sortFieldKey = finalSortBy as string; // TypeScript needs explicit type
+    const sortFields: Record<string, 1 | -1> = {
+      [sortFieldKey]: sortOrder,
+    };
 
     // Execute query with pagination
     const skip = (page - 1) * limit;
@@ -84,18 +126,28 @@ export async function GET(request: Request) {
     const totalPages = Math.ceil(total / limit);
     const hasMore = page < totalPages;
 
-    return NextResponse.json(
-      {
-        data: todos,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages,
-          hasMore,
-        },
+    const responseData = {
+      data: todos,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasMore,
       },
-      { status: 200 }
+    };
+
+    // Cache the result for 5 minutes
+    await cache.set(cacheKey, responseData, 300);
+
+    return NextResponse.json(
+      responseData,
+      {
+        status: 200,
+        headers: {
+          "X-Cache": "MISS",
+        },
+      }
     );
   } catch (error) {
     console.error("Error fetching todos:", error);
@@ -127,77 +179,23 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { title, description, priority, dueDate } = body as {
-      title?: string;
-      description?: string;
-      priority?: string;
-      dueDate?: string | null;
-    };
 
-    // Validation
-    if (!title || title.trim().length === 0) {
+    // Validate with Zod
+    const validation = createTodoSchema.safeParse(body);
+    if (!validation.success) {
       return NextResponse.json(
         {
           error: {
             code: "VALIDATION_ERROR",
-            message: "Title is required",
+            message: "Invalid todo data",
+            details: formatZodError(validation.error),
           },
         },
         { status: 400 }
       );
     }
 
-    if (!description || description.trim().length === 0) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Description is required",
-          },
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate priority
-    if (priority && !["low", "medium", "high"].includes(priority)) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Priority must be one of: low, medium, high",
-          },
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate dueDate if provided
-    if (dueDate) {
-      const dueDateObj = new Date(dueDate);
-      if (isNaN(dueDateObj.getTime())) {
-        return NextResponse.json(
-          {
-            error: {
-              code: "VALIDATION_ERROR",
-              message: "Invalid dueDate format",
-            },
-          },
-          { status: 400 }
-        );
-      }
-      if (dueDateObj <= new Date()) {
-        return NextResponse.json(
-          {
-            error: {
-              code: "VALIDATION_ERROR",
-              message: "dueDate must be in the future",
-            },
-          },
-          { status: 400 }
-        );
-      }
-    }
+    const { title, description, priority, dueDate } = validation.data;
 
     await connectToDb();
 
@@ -217,6 +215,9 @@ export async function POST(request: Request) {
     // Return without __v
     const todoObj = newTodo.toObject();
     const { __v, ...todoWithoutVersion } = todoObj;
+
+    // Invalidate user's todo list cache
+    await cache.delPattern(cacheKeys.userTodos(auth.userId));
 
     return NextResponse.json(
       {

@@ -38,6 +38,9 @@ const userSchema:Schema<IUser> = new Schema({
     timestamps:true
 });
 
+// Index for email (unique and frequently queried)
+userSchema.index({ email: 1 }, { unique: true });
+
 
 // Method to compare entered password with hashed password
 userSchema.methods.comparePassword = async function(enteredPassword: string): Promise<boolean> {

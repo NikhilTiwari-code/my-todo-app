@@ -56,6 +56,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // Important: allow cookies
         body: JSON.stringify(formData),
       });
 
@@ -65,10 +66,11 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
         throw new Error(data.error?.message || "Login failed");
       }
 
-      // Store token and update auth context
-      login(data.token);
+      // Cookie is automatically set by the server
+      // Update auth context to fetch user data
+      await login();
 
-      // Call success callback
+      // Call success callback or redirect
       if (onSuccess) {
         onSuccess();
       } else {

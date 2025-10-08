@@ -13,7 +13,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (token: string) => void;
+  login: () => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
 }
@@ -26,19 +26,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const checkAuth = async () => {
-    const token = localStorage.getItem("token");
-    
-    if (!token) {
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
-
     try {
+      // No need to check localStorage - cookie is sent automatically!
       const response = await fetch("/api/auth/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "include", // Important: send cookies
       });
 
       if (!response.ok) {
@@ -49,20 +40,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
     } catch (error) {
       console.error("Auth check failed:", error);
-      localStorage.removeItem("token");
       setUser(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const login = (token: string) => {
-    localStorage.setItem("token", token);
-    checkAuth();
+  const login = async () => {
+    // Cookie is already set by the login API
+    // Just check auth to get user data
+    await checkAuth();
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
+    // Clear the cookie
+    document.cookie = "token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
     setUser(null);
     router.push("/login");
   };

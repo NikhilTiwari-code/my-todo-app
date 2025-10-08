@@ -52,6 +52,22 @@ const todoSchema : Schema<ITodo> = new Schema({
     timestamps: true,
 });
 
+// Indexes for performance optimization
+// Compound index for filtering by owner and sorting by createdAt (most common query)
+todoSchema.index({ owner: 1, createdAt: -1 });
+
+// Compound index for filtering by owner and priority
+todoSchema.index({ owner: 1, priority: 1 });
+
+// Compound index for filtering by owner and completion status
+todoSchema.index({ owner: 1, isCompleted: 1 });
+
+// Compound index for filtering by owner and sorting by dueDate
+todoSchema.index({ owner: 1, dueDate: 1 });
+
+// Text index for search functionality (title and description)
+todoSchema.index({ title: 'text', description: 'text' });
+
 // Create and export the Todo model
 const Todo: Model<ITodo> = models.Todo || mongoose.model<ITodo>('Todo', todoSchema);
 export default Todo;

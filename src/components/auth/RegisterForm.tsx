@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
@@ -14,7 +13,6 @@ interface RegisterFormProps {
 
 export default function RegisterForm({ onSuccess }: RegisterFormProps) {
   const router = useRouter();
-  const { login } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -75,6 +73,7 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // Include cookies
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
@@ -88,14 +87,12 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
         throw new Error(data.error?.message || "Registration failed");
       }
 
-      // Store token and update auth context
-      login(data.token);
-
-      // Call success callback
+      // Registration successful - redirect to login
+      // (Register endpoint doesn't set cookies, user needs to login)
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push("/todos");
+        router.push("/login");
       }
     } catch (error: any) {
       setServerError(error.message || "An error occurred during registration");

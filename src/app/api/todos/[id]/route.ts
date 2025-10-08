@@ -3,6 +3,10 @@ import { Types } from "mongoose";
 import connectToDb from "@/utils/db";
 import Todo from "@/models/todos.model";
 import { getUserIdFromRequest } from "@/utils/auth";
+import { withRateLimit } from "@/middleware/rate-limit";
+import { readRateLimiter, mutationRateLimiter } from "@/lib/rate-limiter";
+import { objectIdSchema, updateTodoSchema, patchTodoSchema, formatZodError } from "@/lib/validations";
+import { cache, cacheKeys } from "@/lib/redis";
 
 
 function isValidObjectId(id: string): boolean {
@@ -15,7 +19,7 @@ function isValidObjectId(id: string): boolean {
 */
 
 
-export async function GET(request: Request, context: { params: { id: string } }) {
+async function getTodoHandler(request: Request, context: { params: { id: string } }) {
   // Auth guard
   const auth = await getUserIdFromRequest(request);
   if ("error" in auth) return auth.error;
@@ -23,13 +27,15 @@ export async function GET(request: Request, context: { params: { id: string } })
 
   const { id } = context.params;
 
-  // Validate ObjectId
-  if (!isValidObjectId(id)) {
+  // Validate ObjectId with Zod
+  const validation = objectIdSchema.safeParse(id);
+  if (!validation.success) {
     return NextResponse.json(
       {
         error: {
           code: "INVALID_ID",
           message: "Invalid todo ID format",
+          details: formatZodError(validation.error),
         },
       },
       { status: 400 }
@@ -38,6 +44,33 @@ export async function GET(request: Request, context: { params: { id: string } })
 
   try {
     await connectToDb();
+
+    // Try to get from cache
+    const cacheKey = cacheKeys.todo(id);
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      // Verify ownership from cached data
+      if ((cached as any).owner !== auth.userId) {
+        return NextResponse.json(
+          {
+            error: {
+              code: "NOT_FOUND",
+              message: "Todo not found or access denied",
+            },
+          },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json(
+        { todo: cached },
+        {
+          status: 200,
+          headers: {
+            "X-Cache": "HIT",
+          },
+        }
+      );
+    }
 
     const todo = await Todo.findOne({
       _id: id,
@@ -60,11 +93,19 @@ export async function GET(request: Request, context: { params: { id: string } })
       );
     }
 
+    // Cache the todo for 10 minutes
+    await cache.set(cacheKey, todo, 600);
+
     return NextResponse.json(
       {
         todo,
       },
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          "X-Cache": "MISS",
+        },
+      }
     );
   } catch (error) {
     console.error("Error fetching todo:", error);
@@ -80,6 +121,11 @@ export async function GET(request: Request, context: { params: { id: string } })
   }
 }
 
+// Apply lenient rate limiting for read operations
+export const GET = withRateLimit(getTodoHandler, {
+  limiter: readRateLimiter,
+});
+
 
 
 /**
@@ -89,20 +135,22 @@ export async function GET(request: Request, context: { params: { id: string } })
  */
 
 
-export async function PUT(request: Request, context: { params: { id: string } }) {
+async function updateTodoHandler(request: Request, context: { params: { id: string } }) {
   // Auth guard
   const auth = await getUserIdFromRequest(request);
   if ("error" in auth) return auth.error;
 
   const { id } = context.params;
 
-  // Validate ObjectId
-  if (!isValidObjectId(id)) {
+  // Validate ObjectId with Zod
+  const idValidation = objectIdSchema.safeParse(id);
+  if (!idValidation.success) {
     return NextResponse.json(
       {
         error: {
           code: "INVALID_ID",
           message: "Invalid todo ID format",
+          details: formatZodError(idValidation.error),
         },
       },
       { status: 400 }
@@ -111,77 +159,23 @@ export async function PUT(request: Request, context: { params: { id: string } })
 
   try {
     const body = await request.json();
-    const { title, description, priority, dueDate } = body as {
-      title?: string;
-      description?: string;
-      priority?: string;
-      dueDate?: string | null;
-    };
 
-    // Validation (PUT requires all fields)
-    if (!title || title.trim().length === 0) {
+    // Validate with Zod
+    const validation = updateTodoSchema.safeParse(body);
+    if (!validation.success) {
       return NextResponse.json(
         {
           error: {
             code: "VALIDATION_ERROR",
-            message: "Title is required",
+            message: "Invalid todo data",
+            details: formatZodError(validation.error),
           },
         },
         { status: 400 }
       );
     }
 
-    if (!description || description.trim().length === 0) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Description is required",
-          },
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate priority
-    if (priority && !["low", "medium", "high"].includes(priority)) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Priority must be one of: low, medium, high",
-          },
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate dueDate if provided
-    if (dueDate) {
-      const dueDateObj = new Date(dueDate);
-      if (isNaN(dueDateObj.getTime())) {
-        return NextResponse.json(
-          {
-            error: {
-              code: "VALIDATION_ERROR",
-              message: "Invalid dueDate format",
-            },
-          },
-          { status: 400 }
-        );
-      }
-      if (dueDateObj <= new Date()) {
-        return NextResponse.json(
-          {
-            error: {
-              code: "VALIDATION_ERROR",
-              message: "dueDate must be in the future",
-            },
-          },
-          { status: 400 }
-        );
-      }
-    }
+    const { title, description, priority, dueDate } = validation.data;
 
     await connectToDb();
 
@@ -259,6 +253,11 @@ export async function PUT(request: Request, context: { params: { id: string } })
   }
 }
 
+// Apply moderate rate limiting for mutations
+export const PUT = withRateLimit(updateTodoHandler, {
+  limiter: mutationRateLimiter,
+});
+
 
 
 
@@ -270,20 +269,22 @@ export async function PUT(request: Request, context: { params: { id: string } })
 
 
 
-export async function PATCH(request: Request, context: { params: { id: string } }) {
+async function patchTodoHandler(request: Request, context: { params: { id: string } }) {
   // Auth guard
   const auth = await getUserIdFromRequest(request);
   if ("error" in auth) return auth.error;
 
   const { id } = context.params;
 
-  // Validate ObjectId
-  if (!isValidObjectId(id)) {
+  // Validate ObjectId with Zod
+  const idValidation = objectIdSchema.safeParse(id);
+  if (!idValidation.success) {
     return NextResponse.json(
       {
         error: {
           code: "INVALID_ID",
           message: "Invalid todo ID format",
+          details: formatZodError(idValidation.error),
         },
       },
       { status: 400 }
@@ -292,59 +293,36 @@ export async function PATCH(request: Request, context: { params: { id: string } 
 
   try {
     const body = await request.json();
-    const { title, description, priority, dueDate, isCompleted } = body as {
-      title?: string;
-      description?: string;
-      priority?: string;
-      dueDate?: string | null;
-      isCompleted?: boolean;
-    };
+
+    // Validate with Zod
+    const validation = patchTodoSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Invalid todo data",
+            details: formatZodError(validation.error),
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    const { title, description, priority, dueDate, isCompleted } = validation.data;
 
     // Build update object with only provided fields
     const updateData: any = {};
 
     if (title !== undefined) {
-      if (title.trim().length === 0) {
-        return NextResponse.json(
-          {
-            error: {
-              code: "VALIDATION_ERROR",
-              message: "Title cannot be empty",
-            },
-          },
-          { status: 400 }
-        );
-      }
-      updateData.title = title.trim();
+      updateData.title = title;
     }
 
     if (description !== undefined) {
-      if (description.trim().length === 0) {
-        return NextResponse.json(
-          {
-            error: {
-              code: "VALIDATION_ERROR",
-              message: "Description cannot be empty",
-            },
-          },
-          { status: 400 }
-        );
-      }
-      updateData.description = description.trim();
+      updateData.description = description;
     }
 
     if (priority !== undefined) {
-      if (!["low", "medium", "high"].includes(priority)) {
-        return NextResponse.json(
-          {
-            error: {
-              code: "VALIDATION_ERROR",
-              message: "Priority must be one of: low, medium, high",
-            },
-          },
-          { status: 400 }
-        );
-      }
       updateData.priority = priority;
     }
 
@@ -354,48 +332,12 @@ export async function PATCH(request: Request, context: { params: { id: string } 
         if (!updateData.$unset) updateData.$unset = {};
         updateData.$unset.dueDate = 1;
       } else {
-        const dueDateObj = new Date(dueDate);
-        if (isNaN(dueDateObj.getTime())) {
-          return NextResponse.json(
-            {
-              error: {
-                code: "VALIDATION_ERROR",
-                message: "Invalid dueDate format",
-              },
-            },
-            { status: 400 }
-          );
-        }
-        if (dueDateObj <= new Date()) {
-          return NextResponse.json(
-            {
-              error: {
-                code: "VALIDATION_ERROR",
-                message: "dueDate must be in the future",
-              },
-            },
-            { status: 400 }
-          );
-        }
-        updateData.dueDate = dueDateObj;
+        updateData.dueDate = dueDate;
       }
     }
 
     if (isCompleted !== undefined) {
       updateData.isCompleted = isCompleted;
-    }
-
-    // Check if any fields to update
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "No fields provided for update",
-          },
-        },
-        { status: 400 }
-      );
     }
 
     await connectToDb();
@@ -424,6 +366,10 @@ export async function PATCH(request: Request, context: { params: { id: string } 
         { status: 404 }
       );
     }
+
+    // Invalidate cache
+    await cache.del(cacheKeys.todo(id));
+    await cache.delPattern(cacheKeys.userTodos(auth.userId));
 
     return NextResponse.json(
       {
@@ -460,6 +406,11 @@ export async function PATCH(request: Request, context: { params: { id: string } 
   }
 }
 
+// Apply moderate rate limiting for mutations
+export const PATCH = withRateLimit(patchTodoHandler, {
+  limiter: mutationRateLimiter,
+});
+
 /**
  * DELETE /api/todos/[id]
  * Delete a todo (must be owned by authenticated user)
@@ -467,20 +418,22 @@ export async function PATCH(request: Request, context: { params: { id: string } 
 
 
 
-export async function DELETE(request: Request, context: { params: { id: string } }) {
+async function deleteTodoHandler(request: Request, context: { params: { id: string } }) {
   // Auth guard
   const auth = await getUserIdFromRequest(request);
   if ("error" in auth) return auth.error;
 
   const { id } = context.params;
 
-  // Validate ObjectId
-  if (!isValidObjectId(id)) {
+  // Validate ObjectId with Zod
+  const validation = objectIdSchema.safeParse(id);
+  if (!validation.success) {
     return NextResponse.json(
       {
         error: {
           code: "INVALID_ID",
           message: "Invalid todo ID format",
+          details: formatZodError(validation.error),
         },
       },
       { status: 400 }
@@ -508,6 +461,10 @@ export async function DELETE(request: Request, context: { params: { id: string }
       );
     }
 
+    // Invalidate cache
+    await cache.del(cacheKeys.todo(id));
+    await cache.delPattern(cacheKeys.userTodos(auth.userId));
+
     // Return 204 No Content (standard for successful DELETE)
     return new NextResponse(null, { status: 204 });
   } catch (error) {
@@ -523,4 +480,10 @@ export async function DELETE(request: Request, context: { params: { id: string }
     );
   }
 }
+
+// Apply moderate rate limiting for mutations
+export const DELETE = withRateLimit(deleteTodoHandler, {
+  limiter: mutationRateLimiter,
+});
+ 
  

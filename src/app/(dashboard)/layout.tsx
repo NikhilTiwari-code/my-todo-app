@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,35 +16,98 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navigation = [
     { name: "Todos", href: "/todos", icon: "✓" },
     { name: "Profile", href: "/profile", icon: "👤" },
   ];
 
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        {/* Mobile Overlay */}
+        {isMobileMenuOpen && (
+          <div 
+            className="sidebar-overlay md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <aside className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800">
-          <div className="flex flex-col h-full">
-            {/* Logo */}
-            <div className="flex items-center justify-between px-4 h-16 border-b border-gray-200 dark:border-gray-800">
-              <h1 className="text-2xl font-bold text-blue-600">TodoApp</h1>
-              <ThemeToggle />
+        <aside 
+          className={cn(
+            "sidebar",
+            isSidebarCollapsed ? "sidebar-collapsed" : "sidebar-expanded",
+            isMobileMenuOpen && "sidebar-open"
+          )}
+        >
+          <div className="sidebar-inner">
+            {/* Logo & Toggle */}
+            <div className="sidebar-header">
+              <h1 className="sidebar-logo">
+                TodoApp
+              </h1>
+              <button
+                onClick={toggleSidebar}
+                className="sidebar-toggle"
+                aria-label="Toggle sidebar"
+              >
+                {isSidebarCollapsed ? (
+                  // Menu icon (expand)
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </svg>
+                ) : (
+                  // Collapse icon
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                )}
+              </button>
             </div>
 
             {/* User Info */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
+            <div className="sidebar-user">
+              <div className="sidebar-user-content">
+                <div className="sidebar-avatar">
                   {user?.name?.charAt(0).toUpperCase() || "U"}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                <div className="sidebar-user-info">
+                  <p className="sidebar-user-name">
                     {user?.name || "User"}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  <p className="sidebar-user-email">
                     {user?.email || "user@example.com"}
                   </p>
                 </div>
@@ -52,7 +115,7 @@ export default function DashboardLayout({
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 p-4 space-y-2">
+            <nav className="sidebar-nav">
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
                 return (
@@ -60,35 +123,89 @@ export default function DashboardLayout({
                     key={item.name}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      "sidebar-nav-item",
                       isActive
-                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        ? "sidebar-nav-item-active"
+                        : "sidebar-nav-item-inactive"
                     )}
+                    title={isSidebarCollapsed ? item.name : undefined}
                   >
-                    <span className="text-lg">{item.icon}</span>
-                    {item.name}
+                    <span className="sidebar-nav-icon">{item.icon}</span>
+                    <span className="sidebar-nav-text">{item.name}</span>
+                    {isSidebarCollapsed && (
+                      <span className="sidebar-tooltip">{item.name}</span>
+                    )}
                   </Link>
                 );
               })}
             </nav>
 
             {/* Logout Button */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+            <div className="sidebar-footer">
               <Button
                 variant="outline"
-                className="w-full"
+                className="sidebar-logout-btn"
                 onClick={logout}
+                title={isSidebarCollapsed ? "Logout" : undefined}
               >
-                Logout
+                {isSidebarCollapsed ? (
+                  <span className="text-lg">🚪</span>
+                ) : (
+                  "Logout"
+                )}
               </Button>
             </div>
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="ml-64">
-          <div className="p-8">{children}</div>
+        <main 
+          className={cn(
+            "main-content",
+            isSidebarCollapsed ? "main-content-collapsed" : "main-content-expanded"
+          )}
+        >
+          {/* Top Header with Theme Toggle */}
+          <div className="top-header">
+            <div className="top-header-content">
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+
+              {/* Page Title */}
+              <h2 className="top-header-title hidden md:block">
+                {navigation.find(item => item.href === pathname)?.name || "Dashboard"}
+              </h2>
+
+              {/* Theme Toggle on Right */}
+              <div className="top-header-actions ml-auto">
+                <ThemeToggle />
+              </div>
+            </div>
+          </div>
+
+          {/* Page Content */}
+          <div className="p-8">
+            {children}
+          </div>
         </main>
       </div>
     </AuthGuard>

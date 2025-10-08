@@ -19,12 +19,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const body = document.body;
     const isDark = value === "dark";
 
-    root.classList.toggle("dark", isDark);
-    root.style.colorScheme = isDark ? "dark" : "light";
-
-    if (body) {
-      body.classList.toggle("dark", isDark);
+    // Force remove/add to ensure it applies
+    if (isDark) {
+      root.classList.remove("light");
+      root.classList.add("dark");
+      body?.classList.remove("light");
+      body?.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+      root.classList.add("light");
+      body?.classList.remove("dark");
+      body?.classList.add("light");
     }
+
+    root.style.colorScheme = isDark ? "dark" : "light";
   }, []);
 
   // Load theme from localStorage on mount

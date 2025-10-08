@@ -1,0 +1,361 @@
+/* ==========================================
+   SIDEBAR STYLES
+   Collapsible sidebar navigation component
+   ========================================== */
+
+/* Sidebar Container - Full Height */
+.sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background-color: white;
+  border-right: 1px solid #e5e7eb;
+  transition: all 0.3s ease-in-out;
+  z-index: 40;
+}
+
+.dark .sidebar {
+  background-color: rgb(3, 7, 18);
+  border-right-color: rgb(31, 41, 55);
+}
+
+/* Expanded Sidebar - Full Width */
+.sidebar-expanded {
+  width: 16rem; /* 256px */
+}
+
+/* Collapsed Sidebar - Icon Only */
+.sidebar-collapsed {
+  width: 5rem; /* 80px */
+}
+
+/* Sidebar Inner Container */
+.sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Logo Section */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  height: 4rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .sidebar-header {
+  border-bottom-color: rgb(31, 41, 55);
+}
+
+.sidebar-logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #2563eb;
+  transition: opacity 0.3s;
+}
+
+/* Hide logo text when collapsed */
+.sidebar-collapsed .sidebar-logo {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+/* Collapse Toggle Button */
+.sidebar-toggle {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  color: #6b7280;
+  transition: all 0.3s;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.sidebar-toggle:hover {
+  background-color: #f3f4f6;
+}
+
+.dark .sidebar-toggle {
+  color: #9ca3af;
+}
+
+.dark .sidebar-toggle:hover {
+  background-color: rgb(31, 41, 55);
+}
+
+.sidebar-collapsed .sidebar-toggle {
+  margin: 0 auto;
+}
+
+/* User Info Section */
+.sidebar-user {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .sidebar-user {
+  border-bottom-color: rgb(31, 41, 55);
+}
+
+.sidebar-user-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  background-color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.sidebar-user-info {
+  flex: 1;
+  min-width: 0;
+  transition: opacity 0.3s;
+}
+
+/* Hide user info text when collapsed */
+.sidebar-collapsed .sidebar-user-info {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.sidebar-user-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dark .sidebar-user-name {
+  color: #f3f4f6;
+}
+
+.sidebar-user-email {
+  font-size: 0.75rem;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dark .sidebar-user-email {
+  color: #9ca3af;
+}
+
+/* Collapsed user section - center avatar */
+.sidebar-collapsed .sidebar-user-content {
+  justify-content: center;
+}
+
+/* Navigation Section */
+.sidebar-nav {
+  flex: 1;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.sidebar-nav-item-active {
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+.dark .sidebar-nav-item-active {
+  background-color: rgba(37, 99, 235, 0.2);
+  color: #60a5fa;
+}
+
+.sidebar-nav-item-inactive {
+  color: #374151;
+}
+
+.sidebar-nav-item-inactive:hover {
+  background-color: #f3f4f6;
+}
+
+.dark .sidebar-nav-item-inactive {
+  color: #d1d5db;
+}
+
+.dark .sidebar-nav-item-inactive:hover {
+  background-color: rgb(31, 41, 55);
+}
+
+.sidebar-nav-icon {
+  font-size: 1.125rem;
+  flex-shrink: 0;
+}
+
+.sidebar-nav-text {
+  transition: opacity 0.3s;
+}
+
+/* Hide nav text when collapsed */
+.sidebar-collapsed .sidebar-nav-text {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+/* Center nav items when collapsed */
+.sidebar-collapsed .sidebar-nav-item {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Logout Section */
+.sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.dark .sidebar-footer {
+  border-top-color: rgb(31, 41, 55);
+}
+
+.sidebar-logout-btn {
+  width: 100%;
+  transition: all 0.3s;
+}
+
+/* Main Content Area */
+.main-content {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Main content margin when sidebar is expanded */
+.main-content-expanded {
+  margin-left: 16rem; /* 256px */
+}
+
+/* Main content margin when sidebar is collapsed */
+.main-content-collapsed {
+  margin-left: 5rem; /* 80px */
+}
+
+/* Top Header (for theme toggle) */
+.top-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: #f9fafb; /* gray-50 */
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1rem 2rem;
+}
+
+.dark .top-header {
+  background-color: rgb(17, 24, 39); /* gray-900 */
+  border-bottom-color: rgb(31, 41, 55);
+}
+
+.top-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.top-header-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #111827;
+}
+
+.dark .top-header-title {
+  color: #f3f4f6;
+}
+
+.top-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+/* Responsive: Hide sidebar on mobile, show menu button */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  
+  .sidebar-open {
+    transform: translateX(0);
+  }
+  
+  .main-content {
+    margin-left: 0 !important;
+  }
+  
+  /* Overlay for mobile */
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 30;
+  }
+}
+
+/* Smooth transitions for all interactive elements */
+.sidebar * {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Tooltip for collapsed state */
+.sidebar-tooltip {
+  position: absolute;
+  left: 100%;
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #111827;
+  color: white;
+  font-size: 0.75rem;
+  border-radius: 0.25rem;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.dark .sidebar-tooltip {
+  background-color: rgb(55, 65, 81);
+}
+
+.sidebar-nav-item:hover .sidebar-tooltip {
+  opacity: 1;
+}
+
+.sidebar-collapsed .sidebar-nav-item {
+  position: relative;
+}
