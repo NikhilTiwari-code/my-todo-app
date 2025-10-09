@@ -16,7 +16,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
   const router = useRouter();
   const { login } = useAuth();
   const [formData, setFormData] = useState({
-    email: "",
+    email: "", 
     password: "",
   });
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});

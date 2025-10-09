@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
-
+ 
 interface RegisterFormProps {
   onSuccess?: () => void;
 }
 
 export default function RegisterForm({ onSuccess }: RegisterFormProps) {
   const router = useRouter();
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -89,6 +90,7 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
 
       // Registration successful - redirect to login
       // (Register endpoint doesn't set cookies, user needs to login)
+      
       if (onSuccess) {
         onSuccess();
       } else {
