@@ -7,13 +7,13 @@
  * export const POST = withRateLimit(handler, { limiter: authRateLimiter });
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { RateLimiter } from "@/lib/rate-limiter";
 
 interface RateLimitOptions {
   limiter: RateLimiter;
   identifier?: (request: Request) => string | Promise<string>;
-  onRateLimitExceeded?: (identifier: string, resetTime: number) => void;
+  onRateLimitExceeded?: (identifier: string) => void;
 }
 
 /**
@@ -60,7 +60,7 @@ export async function getIdentifier(request: Request): Promise<string> {
       }
     }
   } catch (error) {
-    // Token invalid or not present, fall back to IP
+    console.debug("[RateLimit] Failed to parse token for identifier", error);
   }
   
   return `ip:${getClientIp(request)}`;
@@ -88,11 +88,12 @@ export async function getIdentifier(request: Request): Promise<string> {
  *   { limiter: readRateLimiter }
  * );
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function withRateLimit<T extends any[] = []>(
-  handler: (request: Request, ...args: T) => Promise<NextResponse>,
+  handler: (request: NextRequest, ...args: T) => Promise<NextResponse>,
   options: RateLimitOptions
 ) {
-  return async (request: Request, ...args: T): Promise<NextResponse> => {
+  return async (request: NextRequest, ...args: T): Promise<NextResponse> => {
     const { limiter, identifier: getCustomIdentifier, onRateLimitExceeded } = options;
 
     // Get identifier (IP or user ID)
@@ -113,7 +114,7 @@ export function withRateLimit<T extends any[] = []>(
     // Rate limit exceeded
     if (!result.success) {
       if (onRateLimitExceeded) {
-        onRateLimitExceeded(identifier, result.resetTime);
+        onRateLimitExceeded(identifier);
       }
 
       const retryAfter = Math.ceil((result.resetTime - Date.now()) / 1000);
@@ -154,5 +155,6 @@ export function withRateLimit<T extends any[] = []>(
 export function trackFailedLogin(identifier: string): boolean {
   // This would typically update a separate store
   // For now, using the same mechanism
+  console.debug(`[RateLimit] Tracking failed login for ${identifier}`);
   return true;
 }

@@ -79,7 +79,7 @@ export default function TodoList() {
             const value = e.target.value;
             setParams({
               ...params,
-              priority: value === "all" ? undefined : (value as any),
+              priority: value === "all" ? undefined : (value as "low" | "medium" | "high"),
               page: 1,
             });
           }}

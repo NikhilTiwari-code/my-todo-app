@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { Types } from "mongoose";
+import { NextRequest, NextResponse } from "next/server";
 import connectToDb from "@/utils/db";
 import Todo from "@/models/todos.model";
 import { getUserIdFromRequest } from "@/utils/auth";
@@ -8,10 +7,9 @@ import { readRateLimiter, mutationRateLimiter } from "@/lib/rate-limiter";
 import { objectIdSchema, updateTodoSchema, patchTodoSchema, formatZodError } from "@/lib/validations";
 import { cache, cacheKeys } from "@/lib/redis";
 
-
-function isValidObjectId(id: string): boolean {
-  return Types.ObjectId.isValid(id);
-}
+type TodoRouteContext = {
+  params: Promise<{ id: string }>;
+};
 
 /*
  * GET /api/todos/[id]
@@ -19,13 +17,12 @@ function isValidObjectId(id: string): boolean {
 */
 
 
-async function getTodoHandler(request: Request, context: { params: { id: string } }) {
+async function getTodoHandler(request: NextRequest, context: TodoRouteContext) {
   // Auth guard
   const auth = await getUserIdFromRequest(request);
   if ("error" in auth) return auth.error;
- 
 
-  const { id } = context.params;
+  const { id } = await context.params;
 
   // Validate ObjectId with Zod
   const validation = objectIdSchema.safeParse(id);
@@ -50,7 +47,8 @@ async function getTodoHandler(request: Request, context: { params: { id: string 
     const cached = await cache.get(cacheKey);
     if (cached) {
       // Verify ownership from cached data
-      if ((cached as any).owner !== auth.userId) {
+      const cachedData = cached as { owner: string };
+      if (cachedData.owner !== auth.userId) {
         return NextResponse.json(
           {
             error: {
@@ -135,12 +133,12 @@ export const GET = withRateLimit(getTodoHandler, {
  */
 
 
-async function updateTodoHandler(request: Request, context: { params: { id: string } }) {
+async function updateTodoHandler(request: NextRequest, context: TodoRouteContext) {
   // Auth guard
   const auth = await getUserIdFromRequest(request);
   if ("error" in auth) return auth.error;
 
-  const { id } = context.params;
+  const { id } = await context.params;
 
   // Validate ObjectId with Zod
   const idValidation = objectIdSchema.safeParse(id);
@@ -180,7 +178,7 @@ async function updateTodoHandler(request: Request, context: { params: { id: stri
     await connectToDb();
 
     // Build update object
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       title: title.trim(),
       description: description.trim(),
       priority: priority || "low",
@@ -225,11 +223,11 @@ async function updateTodoHandler(request: Request, context: { params: { id: stri
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error updating todo:", error);
 
     // Handle Mongoose validation errors
-    if (error.name === "ValidationError") {
+    if (error instanceof Error && 'name' in error && error.name === "ValidationError") {
       return NextResponse.json(
         {
           error: {
@@ -269,12 +267,12 @@ export const PUT = withRateLimit(updateTodoHandler, {
 
 
 
-async function patchTodoHandler(request: Request, context: { params: { id: string } }) {
+async function patchTodoHandler(request: NextRequest, context: TodoRouteContext) {
   // Auth guard
   const auth = await getUserIdFromRequest(request);
   if ("error" in auth) return auth.error;
 
-  const { id } = context.params;
+  const { id } = await context.params;
 
   // Validate ObjectId with Zod
   const idValidation = objectIdSchema.safeParse(id);
@@ -312,7 +310,7 @@ async function patchTodoHandler(request: Request, context: { params: { id: strin
     const { title, description, priority, dueDate, isCompleted } = validation.data;
 
     // Build update object with only provided fields
-    const updateData: any = {};
+    const updateData: Record<string, unknown> & { $unset?: Record<string, number> } = {};
 
     if (title !== undefined) {
       updateData.title = title;
@@ -378,11 +376,11 @@ async function patchTodoHandler(request: Request, context: { params: { id: strin
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error patching todo:", error);
 
     // Handle Mongoose validation errors
-    if (error.name === "ValidationError") {
+    if (error instanceof Error && 'name' in error && error.name === "ValidationError") {
       return NextResponse.json(
         {
           error: {
@@ -418,12 +416,12 @@ export const PATCH = withRateLimit(patchTodoHandler, {
 
 
 
-async function deleteTodoHandler(request: Request, context: { params: { id: string } }) {
+async function deleteTodoHandler(request: NextRequest, context: TodoRouteContext) {
   // Auth guard
   const auth = await getUserIdFromRequest(request);
   if ("error" in auth) return auth.error;
 
-  const { id } = context.params;
+  const { id } = await context.params;
 
   // Validate ObjectId with Zod
   const validation = objectIdSchema.safeParse(id);

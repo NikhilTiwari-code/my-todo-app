@@ -196,8 +196,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Eye, EyeOff, CheckCircle, XCircle, Shield, Sparkles, Mail, Lock, User } from "lucide-react";
 import { useEmailCheck } from "@/hooks/useEmailCheck";
@@ -351,11 +349,7 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
         headers: {
           "Content-Type": "application/json",
         },
-<<<<<<< HEAD
-        credentials: "include", // Include cookies
-=======
         credentials: "include",
->>>>>>> frontend
         body: JSON.stringify({
           name: sanitizeInput(formData.name).trim(),
           email: formData.email.toLowerCase().trim(),
@@ -376,24 +370,14 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
         throw new Error(data.error?.message || "Registration failed");
       }
 
-<<<<<<< HEAD
-      // Registration successful - redirect to login
-      // (Register endpoint doesn't set cookies, user needs to login)
-      
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        router.push("/login");
-=======
       // Success - redirect or callback
       if (onSuccess) {
         onSuccess();
       } else {
         router.push("/login?registered=true");
->>>>>>> frontend
       }
-    } catch (error: any) {
-      setServerError(error.message || "An error occurred during registration");
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : "An error occurred during registration");
     } finally {
       setIsLoading(false);
     }
@@ -454,20 +438,20 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
         />
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 relative" noValidate>
+      <form onSubmit={handleSubmit} className="space-y-3 relative" noValidate>
         {/* Header with icon */}
-        <div className="text-center space-y-2 mb-6">
-          <div className={`inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 shadow-lg mb-3 transition-all duration-500 ${
+        <div className="text-center space-y-1 mb-4">
+          <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 shadow-lg mb-2 transition-all duration-500 ${
             isHovered ? 'shadow-purple-500/50 scale-110 rotate-12 animate-float' : 'shadow-purple-500/30 scale-100 rotate-0'
           }`}>
-            <Sparkles className={`w-7 h-7 text-white transition-transform duration-500 ${isHovered ? 'rotate-180 scale-110' : 'rotate-0'}`} />
+            <Sparkles className={`w-6 h-6 text-white transition-transform duration-500 ${isHovered ? 'rotate-180 scale-110' : 'rotate-0'}`} />
           </div>
-          <h2 className={`text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent transition-all duration-500 ${
+          <h2 className={`text-xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent transition-all duration-500 ${
             isHovered ? 'scale-105 tracking-wider' : 'scale-100'
           }`}>
             Create Account
           </h2>
-          <p className={`text-sm text-gray-600 dark:text-gray-400 transition-all duration-500 ${
+          <p className={`text-xs text-gray-600 dark:text-gray-400 transition-all duration-500 ${
             isHovered ? 'opacity-100 translate-y-0' : 'opacity-70 translate-y-1'
           }`}>Join us and start your journey</p>
         </div>
@@ -495,7 +479,7 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
               placeholder=" "
               disabled={isLoading}
               required
-              className={`peer w-full pl-11 pr-4 py-3 rounded-xl border-2 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm transition-all duration-300 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 focus:scale-[1.02] outline-none ${
+              className={`peer w-full pl-11 pr-4 py-2.5 rounded-xl border-2 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm transition-all duration-300 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 focus:scale-[1.02] outline-none ${
                 errors.name ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
               } disabled:opacity-50 disabled:cursor-not-allowed hover:border-purple-300 dark:hover:border-purple-700`}
             />
@@ -525,7 +509,7 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
               placeholder=" "
               disabled={isLoading}
               required
-              className={`peer w-full pl-11 pr-12 py-3 rounded-xl border-2 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm transition-all duration-300 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 focus:scale-[1.02] outline-none ${
+              className={`peer w-full pl-11 pr-12 py-2.5 rounded-xl border-2 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm transition-all duration-300 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 focus:scale-[1.02] outline-none ${
                 errors.email ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
               } disabled:opacity-50 disabled:cursor-not-allowed hover:border-purple-300 dark:hover:border-purple-700`}
             />
@@ -583,7 +567,7 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
               placeholder=" "
               disabled={isLoading}
               required
-              className={`peer w-full pl-11 pr-12 py-3 rounded-xl border-2 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm transition-all duration-300 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 focus:scale-[1.02] outline-none ${
+              className={`peer w-full pl-11 pr-12 py-2.5 rounded-xl border-2 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm transition-all duration-300 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 focus:scale-[1.02] outline-none ${
                 errors.password ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
               } disabled:opacity-50 disabled:cursor-not-allowed hover:border-purple-300 dark:hover:border-purple-700`}
             />
@@ -602,15 +586,15 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
 
           {/* Password Strength Indicator */}
           {formData.password && (
-            <div className="mt-2 space-y-2 animate-slideDown">
+            <div className="mt-1.5 space-y-1.5 animate-slideDown">
               <div className="flex items-center gap-2">
-                <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="flex-1 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
                     className={`h-full transition-all duration-500 ${passwordStrength.color}`}
                     style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
                   />
                 </div>
-                <span className={`text-xs font-semibold min-w-[50px] ${
+                <span className={`text-xs font-semibold min-w-[45px] ${
                   passwordStrength.score <= 2 ? 'text-red-500' : 
                   passwordStrength.score === 3 ? 'text-yellow-500' : 
                   passwordStrength.score === 4 ? 'text-blue-500' : 'text-green-500'
@@ -619,32 +603,28 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
                 </span>
               </div>
 
-              {/* Password Requirements */}
-              <div className="p-3 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-100 dark:border-purple-800/30">
-                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1">
-                  <Shield className="w-3 h-3 text-purple-500" />
-                  Password Requirements:
-                </p>
-                <div className="grid grid-cols-2 gap-1.5">
+              {/* Password Requirements - Compact */}
+              <div className="p-2 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-100 dark:border-purple-800/30">
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
                   {[
-                    { key: "length", label: "8+ chars" },
-                    { key: "uppercase", label: "Uppercase" },
-                    { key: "lowercase", label: "Lowercase" },
-                    { key: "number", label: "Number" },
-                    { key: "special", label: "Special" },
+                    { key: "length", label: "8+" },
+                    { key: "uppercase", label: "A-Z" },
+                    { key: "lowercase", label: "a-z" },
+                    { key: "number", label: "0-9" },
+                    { key: "special", label: "!@#" },
                   ].map(({ key, label }) => (
                     <div
                       key={key}
-                      className={`flex items-center gap-1 text-xs transition-all duration-300 ${
+                      className={`flex items-center gap-1 transition-all duration-300 ${
                         passwordStrength.checks[key as keyof typeof passwordStrength.checks]
-                          ? "text-green-600 dark:text-green-400 scale-100"
-                          : "text-gray-400 scale-95"
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-gray-400"
                       }`}
                     >
                       {passwordStrength.checks[key as keyof typeof passwordStrength.checks] ? (
                         <CheckCircle className="w-3 h-3" />
                       ) : (
-                        <div className="w-3 h-3 rounded-full border-2 border-current" />
+                        <div className="w-3 h-3 rounded-full border border-current" />
                       )}
                       <span>{label}</span>
                     </div>
@@ -736,7 +716,7 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
         <div className={`flex items-start gap-2.5 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200/50 dark:border-blue-800/30 rounded-lg backdrop-blur-sm transition-all duration-500 hover:shadow-lg hover:shadow-blue-500/10 hover:scale-[1.01] ${isHovered ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-90'}`} style={{ transitionDelay: '300ms' }}>
           <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
           <p className="text-xs text-blue-800 dark:text-blue-200 leading-relaxed">
-            Your password is encrypted. We'll send a verification email after registration.
+            Your password is encrypted. We&apos;ll send a verification email after registration.
           </p>
         </div>
 

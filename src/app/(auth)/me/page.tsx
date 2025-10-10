@@ -18,31 +18,43 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchUserProfile();
-  }, []);
+    let isMounted = true;
 
-  const fetchUserProfile = async () => {
-    try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include', // Include cookies
-      });
+    const fetchUserProfile = async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include', // Include cookies
+        });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/login');
-          return;
+        if (!response.ok) {
+          if (response.status === 401) {
+            router.push('/login');
+            return;
+          }
+          throw new Error('Failed to fetch profile');
         }
-        throw new Error('Failed to fetch profile');
-      }
 
-      const data = await response.json();
-      setUser(data.user);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+        const data = await response.json();
+        if (isMounted) {
+          setUser(data.user);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'An error occurred');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchUserProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
 
   const handleLogout = async () => {
     // Clear cookie and redirect

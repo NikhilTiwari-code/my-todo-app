@@ -1,6 +1,5 @@
 import mongoose,{Schema,Document,Model,models} from "mongoose";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 //import {IUser} from "../types/user.types";
 
 

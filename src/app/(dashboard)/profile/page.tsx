@@ -3,7 +3,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Metadata } from "next";
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();

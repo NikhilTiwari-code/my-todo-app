@@ -51,13 +51,14 @@ export async function getUserIdFromRequest(
       id: string;
     };
     return { userId: decoded.id };
-  } catch (error: any) {
+  } catch (error) {
+    const isExpired = error instanceof Error && 'name' in error && error.name === "TokenExpiredError";
     return {
       error: NextResponse.json(
         {
           error: {
             code: "UNAUTHORIZED",
-            message: error.name === "TokenExpiredError" 
+            message: isExpired
               ? "Token expired. Please login again." 
               : "Invalid authentication token.",
           },

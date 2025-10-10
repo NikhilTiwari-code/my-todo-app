@@ -60,7 +60,7 @@ export function useEmailCheck(email: string, delay: number = 500): EmailCheckRes
           setError(data.message || 'Failed to check email');
           setIsAvailable(null);
         }
-      } catch (err) {
+      } catch {
         setError('Network error. Please try again.');
         setIsAvailable(null);
       } finally {

@@ -45,7 +45,7 @@ export function getRedisClient(): Redis | null {
 
     return redis;
   } catch (error) {
-    console.warn("[Redis] Failed to initialize - caching disabled");
+    console.warn("[Redis] Failed to initialize - caching disabled", error);
     return null;
   }
 }
@@ -73,7 +73,7 @@ export const cache = {
   /**
    * Set cache value with TTL
    */
-  async set(key: string, value: any, ttlSeconds: number = 300): Promise<boolean> {
+  async set(key: string, value: unknown, ttlSeconds: number = 300): Promise<boolean> {
     const client = getRedisClient();
     if (!client) return false;
 

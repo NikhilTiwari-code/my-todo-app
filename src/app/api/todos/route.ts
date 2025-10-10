@@ -84,7 +84,7 @@ export async function GET(request: Request) {
 
     
     // Build filter
-    const filter: any = { owner: auth.userId };
+    const filter: Record<string, unknown> = { owner: auth.userId };
 
     // Search filter
     if (q) {
@@ -116,7 +116,7 @@ export async function GET(request: Request) {
     const [todos, total] = await Promise.all([
       Todo.find(filter)
         .select("-__v") // Exclude version key
-        .sort(sortFields as any)
+        .sort(sortFields)
         .skip(skip)
         .limit(limit)
         .lean(), // Return plain objects for performance
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
     await connectToDb();
 
     // Create todo
-    const todoData: any = {
+    const todoData: Record<string, unknown> = {
       title: title.trim(),
       description: description.trim(),
       owner: auth.userId,
@@ -214,6 +214,7 @@ export async function POST(request: Request) {
 
     // Return without __v
     const todoObj = newTodo.toObject();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { __v, ...todoWithoutVersion } = todoObj;
 
     // Invalidate user's todo list cache
@@ -226,11 +227,11 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating todo:", error);
 
     // Handle Mongoose validation errors
-    if (error.name === "ValidationError") {
+    if (error instanceof Error && 'name' in error && error.name === "ValidationError") {
       return NextResponse.json(
         {
           error: {

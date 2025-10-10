@@ -4,8 +4,6 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Eye, EyeOff, LogIn, Mail, Lock, Sparkles } from "lucide-react";
 
@@ -78,8 +76,8 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       } else {
         router.push("/todos");
       }
-    } catch (error: any) {
-      setServerError(error.message || "An error occurred during login");
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : "An error occurred during login");
     } finally {
       setIsLoading(false);
     }

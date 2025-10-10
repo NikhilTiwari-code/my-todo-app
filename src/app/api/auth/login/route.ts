@@ -136,7 +136,7 @@ async function loginHandler(request: Request) {
 // Apply rate limiting: 5 attempts per 15 minutes per IP
 export const POST = withRateLimit(loginHandler, {
   limiter: authRateLimiter,
-  onRateLimitExceeded: (identifier, resetTime) => {
+  onRateLimitExceeded: (identifier) => {
     console.warn(`Rate limit exceeded for ${identifier} at ${new Date().toISOString()}`);
   },
 });
