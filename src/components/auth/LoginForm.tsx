@@ -70,14 +70,13 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       // Update auth context to fetch user data
       await login();
 
-      // Small delay to ensure auth state is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
-
       // Call success callback or redirect
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push("/todos");
+        // Use window.location to force a full page reload
+        // This ensures auth state is fresh on the todos page
+        window.location.href = "/todos";
       }
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "An error occurred during login");
