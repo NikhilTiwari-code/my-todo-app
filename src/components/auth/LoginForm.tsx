@@ -70,6 +70,9 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       // Update auth context to fetch user data
       await login();
 
+      // Small delay to ensure auth state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Call success callback or redirect
       if (onSuccess) {
         onSuccess();
