@@ -12,6 +12,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import User from "@/models/user.models";
 import connectToDb from "@/utils/db";
+import jwt from "jsonwebtoken";
 import { withRateLimit } from "@/middleware/rate-limit";
 import { authRateLimiter } from "@/lib/rate-limiter";
 import { registerSchema, formatZodError } from "@/lib/validations";
@@ -21,7 +22,16 @@ import { registerSchema, formatZodError } from "@/lib/validations";
 async function registerHandler(request: Request) {
   try {
     const body = await request.json();
+    
+    // Audit loggging
+    const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0] ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
 
+    console.log(`[REGISTER ATTEMPT] ${new Date().toISOString()} | IP: ${ip} | Email: ${body.email}`);
+
+  
     // Validate input with Zod
     const validation = registerSchema.safeParse(body);
     if (!validation.success) {
@@ -58,10 +68,24 @@ async function registerHandler(request: Request) {
     const newUser = new User({ name, email, password: hashedPassword });
     await newUser.save();
 
-    return NextResponse.json(
+    // Create token for automatic login after registration
+    const tokenData = {
+      id: newUser._id,
+      email: newUser.email,
+      name: newUser.name,
+    };
+
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is not configured");
+    }
+
+    const token = jwt.sign(tokenData, process.env.JWT_SECRET!, { expiresIn: "1h" });
+
+    const response = NextResponse.json(
       {
-        message: "User registered successfully",
+        message: " registeration successfully",
         data: {
+          token,
           user: {
             id: newUser._id,
             name: newUser.name,
@@ -72,7 +96,16 @@ async function registerHandler(request: Request) {
       { status: 201 }
     );
 
-    // redirect to login page
+    // set token in httpOnly cookie
+    response.cookies.set("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 3600, // 1 hour
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error("Error registering user:", error);
     return NextResponse.json(
