@@ -43,7 +43,7 @@ export async function getServerSession(): Promise<{ user: { id: string; email: s
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string; email: string; name: string };
     
     return { user: decoded };
-  } catch (error) {
+  } catch {
     return null;
   }
 }

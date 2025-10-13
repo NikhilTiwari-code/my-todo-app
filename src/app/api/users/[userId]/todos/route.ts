@@ -52,7 +52,7 @@ export async function GET(
     }
 
     // Build query
-    const query: any = { owner: userId };
+    const query: Record<string, unknown> = { owner: userId };
 
     if (priority && priority !== "all") {
       query.priority = priority;

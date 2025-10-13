@@ -27,7 +27,7 @@ export async function GET() {
 
         // Check if current user is following this user
         const isFollowing = currentUserId 
-          ? user.followers.some((followerId: any) => followerId.toString() === currentUserId)
+          ? user.followers.some((followerId: string) => followerId.toString() === currentUserId)
           : false;
 
         return {
