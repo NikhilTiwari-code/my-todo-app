@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Eye, EyeOff, LogIn, Mail, Lock, Sparkles } from "lucide-react";
@@ -12,7 +11,6 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ onSuccess }: LoginFormProps) {
-  const router = useRouter();
   const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: "", 

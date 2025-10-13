@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import NextImage from "next/image";
 import { UserAvatar } from "@/components/users/UserAvatar";
 
 interface AvatarUploadProps {
@@ -112,12 +113,15 @@ export function AvatarUpload({
       {/* Avatar Display */}
       <div className="relative">
         <div className="ring-4 ring-white dark:ring-gray-800 rounded-full">
-          {previewUrl ? (
-            <div className="w-32 h-32 rounded-full overflow-hidden animate-pulse">
-              <img 
+            {previewUrl ? (
+              <div className="relative w-32 h-32 rounded-full overflow-hidden animate-pulse">
+                <NextImage 
                 src={previewUrl} 
                 alt="Preview" 
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
+                sizes="128px"
+                priority
               />
             </div>
           ) : (
