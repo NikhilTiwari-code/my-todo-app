@@ -21,6 +21,7 @@ export default function DashboardLayout({
 
   const navigation = [
     { name: "Todos", href: "/todos", icon: "✓" },
+    { name: "Friends", href: "/friends", icon: "👥" },
     { name: "Profile", href: "/profile", icon: "👤" },
   ];
 
