@@ -6,19 +6,27 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { FollowButton } from "@/components/users/FollowButton";
+import { UserAvatar } from "@/components/users/UserAvatar";
 
 interface UserStats {
   totalTodos: number;
   completedTodos: number;
   activeTodos: number;
+  followersCount: number;
+  followingCount: number;
 }
 
 interface User {
   id: string;
   name: string;
   email: string;
+  avatar?: string;
+  bio?: string;
   createdAt: string;
   stats: UserStats;
+  isFollowing: boolean;
+  isCurrentUser: boolean;
 }
 
 async function fetchUsers(): Promise<{ users: User[]; total: number }> {
@@ -31,6 +39,9 @@ async function fetchUsers(): Promise<{ users: User[]; total: number }> {
 export default function FriendsPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Track local follow states for real-time updates
+  const [localFollowStates, setLocalFollowStates] = useState<Record<string, boolean>>({});
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["users"],
@@ -97,14 +108,11 @@ export default function FriendsPage() {
           {filteredUsers?.map((user) => (
             <Card
               key={user.id}
-              className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => router.push(`/friends/${user.id}`)}
+              className="p-6 hover:shadow-lg transition-shadow"
             >
               {/* User Avatar */}
               <div className="flex items-center mb-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar avatar={user.avatar} name={user.name} size="md" />
                 <div className="ml-4 flex-1">
                   <h3 className="font-semibold text-lg">{user.name}</h3>
                   <p className="text-sm text-muted-foreground truncate">
@@ -112,6 +120,13 @@ export default function FriendsPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Bio */}
+              {user.bio && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+                  {user.bio}
+                </p>
+              )}
 
               {/* Stats */}
               <div className="space-y-2 mb-4">
@@ -133,10 +148,10 @@ export default function FriendsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">
-                    Active
+                    Followers
                   </span>
-                  <span className="font-semibold text-orange-600">
-                    {user.stats.activeTodos}
+                  <span className="font-semibold text-blue-600">
+                    {user.stats.followersCount}
                   </span>
                 </div>
               </div>
@@ -168,17 +183,48 @@ export default function FriendsPage() {
                 </div>
               )}
 
-              {/* View Button */}
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  router.push(`/friends/${user.id}`);
-                }}
-              >
-                View Todos →
-              </Button>
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => router.push(`/friends/${user.id}`)}
+                >
+                  View Profile
+                </Button>
+                
+                {!user.isCurrentUser && (
+                  <>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <FollowButton
+                        userId={user.id}
+                        initialIsFollowing={
+                          localFollowStates[user.id] !== undefined 
+                            ? localFollowStates[user.id]
+                            : user.isFollowing
+                        }
+                        onFollowChange={(newIsFollowing) => {
+                          // Update local state immediately for real-time UI
+                          setLocalFollowStates(prev => ({
+                            ...prev,
+                            [user.id]: newIsFollowing
+                          }));
+                        }}
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/messages/${user.id}`);
+                      }}
+                      title="Send message"
+                    >
+                      💬
+                    </Button>
+                  </>
+                )}
+              </div>
             </Card>
           ))}
         </div>

@@ -3,14 +3,15 @@ import connectToDb from "@/utils/db";
 import User from "@/models/user.models";
 import Todo from "@/models/todos.model";
 import { isValidObjectId } from "mongoose";
+import { getServerSession } from "@/utils/auth";
 
 // GET user by ID with their details
 export async function GET(
   request: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId } = params;
+    const { userId } = await params;
 
     if (!isValidObjectId(userId)) {
       return NextResponse.json(
@@ -26,6 +27,10 @@ export async function GET(
 
     await connectToDb();
 
+    // Get current user session
+    const session = await getServerSession();
+    const currentUserId = session?.user?.id;
+
     // Get user (exclude password)
     const user = await User.findById(userId, { password: 0 });
 
@@ -40,6 +45,11 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    // Check if current user is following this user
+    const isFollowing = currentUserId 
+      ? user.followers.some((followerId: any) => followerId.toString() === currentUserId)
+      : false;
 
     // Get user's todo counts
     const totalTodos = await Todo.countDocuments({ owner: userId });
@@ -61,6 +71,8 @@ export async function GET(
             id: user._id,
             name: user.name,
             email: user.email,
+            avatar: user.avatar,
+            bio: user.bio,
             createdAt: user.createdAt,
           },
           stats: {
@@ -70,7 +82,11 @@ export async function GET(
             completionRate: totalTodos > 0 
               ? Math.round((completedTodos / totalTodos) * 100) 
               : 0,
+            followersCount: user.followers.length,
+            followingCount: user.following.length,
           },
+          isFollowing,
+          isCurrentUser: currentUserId === String(user._id),
           recentTodos: recentTodos.map(todo => ({
             id: todo._id,
             title: todo.title,

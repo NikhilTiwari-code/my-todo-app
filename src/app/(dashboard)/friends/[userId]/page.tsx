@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Badge } from "@/components/ui/Badge";
+import { FollowButton } from "@/components/users/FollowButton";
+import { UserAvatar } from "@/components/users/UserAvatar";
 
 interface Todo {
   id: string;
@@ -23,6 +25,8 @@ interface UserStats {
   completedTodos: number;
   activeTodos: number;
   completionRate: number;
+  followersCount: number;
+  followingCount: number;
 }
 
 interface UserData {
@@ -30,10 +34,14 @@ interface UserData {
     id: string;
     name: string;
     email: string;
+    avatar?: string;
+    bio?: string;
     createdAt: string;
   };
   stats: UserStats;
   recentTodos: Todo[];
+  isFollowing: boolean;
+  isCurrentUser: boolean;
 }
 
 interface TodosData {
@@ -92,8 +100,12 @@ export default function UserProfilePage() {
   const userId = params.userId as string;
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  
+  // Local state for real-time updates
+  const [localFollowersCount, setLocalFollowersCount] = useState<number | null>(null);
+  const [localIsFollowing, setLocalIsFollowing] = useState<boolean | null>(null);
 
-  const { data: userData, isLoading: userLoading } = useQuery({
+  const { data: userData, isLoading: userLoading, refetch: refetchUser } = useQuery({
     queryKey: ["user", userId],
     queryFn: () => fetchUser(userId),
   });
@@ -102,6 +114,10 @@ export default function UserProfilePage() {
     queryKey: ["userTodos", userId, page, filter],
     queryFn: () => fetchUserTodos(userId, page, filter),
   });
+  
+  // Use local state if available, otherwise use fetched data
+  const followersCount = localFollowersCount !== null ? localFollowersCount : userData?.stats.followersCount || 0;
+  const isFollowing = localIsFollowing !== null ? localIsFollowing : userData?.isFollowing || false;
 
   if (userLoading) {
     return (
@@ -146,14 +162,64 @@ export default function UserProfilePage() {
           {/* Profile Card */}
           <Card className="p-6">
             <div className="flex flex-col items-center text-center">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold mb-4">
-                {userData.user.name.charAt(0).toUpperCase()}
-              </div>
-              <h1 className="text-2xl font-bold mb-1">{userData.user.name}</h1>
+              <UserAvatar avatar={userData.user.avatar} name={userData.user.name} size="xl" />
+              <h1 className="text-2xl font-bold mb-1 mt-4">{userData.user.name}</h1>
               <p className="text-sm text-muted-foreground mb-4">
                 {userData.user.email}
               </p>
-              <p className="text-xs text-muted-foreground">
+              
+              {/* Bio */}
+              {userData.user.bio && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 px-2">
+                  {userData.user.bio}
+                </p>
+              )}
+              
+              {/* Follow Stats */}
+              <div className="flex gap-4 mb-4 text-sm">
+                <button
+                  onClick={() => router.push(`/friends/${userId}/followers`)}
+                  className="text-center hover:bg-gray-100 dark:hover:bg-gray-800 px-3 py-2 rounded-lg transition-colors cursor-pointer"
+                >
+                  <div className="font-bold text-lg">{followersCount}</div>
+                  <div className="text-muted-foreground">Followers</div>
+                </button>
+                <button
+                  onClick={() => router.push(`/friends/${userId}/following`)}
+                  className="text-center hover:bg-gray-100 dark:hover:bg-gray-800 px-3 py-2 rounded-lg transition-colors cursor-pointer"
+                >
+                  <div className="font-bold text-lg">{userData.stats.followingCount}</div>
+                  <div className="text-muted-foreground">Following</div>
+                </button>
+              </div>
+
+              {/* Follow Button */}
+              {!userData.isCurrentUser && (
+                <div className="space-y-2">
+                  <FollowButton
+                    userId={userId}
+                    initialIsFollowing={isFollowing}
+                    onFollowChange={(newIsFollowing, newFollowersCount) => {
+                      // Update local state immediately for real-time UI
+                      setLocalIsFollowing(newIsFollowing);
+                      if (newFollowersCount !== undefined) {
+                        setLocalFollowersCount(newFollowersCount);
+                      }
+                    }}
+                  />
+                  
+                  {/* Message Button */}
+                  <Button
+                    onClick={() => router.push(`/messages/${userId}`)}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    💬 Message
+                  </Button>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground mt-4">
                 Member since{" "}
                 {new Date(userData.user.createdAt).toLocaleDateString("en-US", {
                   month: "long",

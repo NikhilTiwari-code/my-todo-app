@@ -35,6 +35,8 @@ export async function GET(request: Request) {
                     id: user._id,
                     name: user.name,
                     email: user.email,
+                    avatar: user.avatar,
+                    bio: user.bio,
                     createdAt: user.createdAt,
                     updatedAt: user.updatedAt,
                 }

@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserAvatar } from "@/components/users/UserAvatar";
 import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({
@@ -22,6 +23,7 @@ export default function DashboardLayout({
   const navigation = [
     { name: "Todos", href: "/todos", icon: "✓" },
     { name: "Friends", href: "/friends", icon: "👥" },
+    { name: "Messages", href: "/messages", icon: "💬" },
     { name: "Profile", href: "/profile", icon: "👤" },
   ];
 
@@ -102,7 +104,11 @@ export default function DashboardLayout({
             <div className="sidebar-user">
               <div className="sidebar-user-content">
                 <div className="sidebar-avatar">
-                  {user?.name?.charAt(0).toUpperCase() || "U"}
+                  <UserAvatar 
+                    avatar={user?.avatar} 
+                    name={user?.name || "User"} 
+                    size="md"
+                  />
                 </div>
                 <div className="sidebar-user-info">
                   <p className="sidebar-user-name">

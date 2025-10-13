@@ -24,6 +24,31 @@ function getTokenFromRequest(request: Request): string | null {
 }
 
 /**
+ * Get session from server-side (used in server components and API routes)
+ * Returns user info or null
+ */
+export async function getServerSession(): Promise<{ user: { id: string; email: string; name: string } } | null> {
+  try {
+    // In API routes, get from headers
+    const { headers } = await import("next/headers");
+    const headersList = await headers();
+    const cookieHeader = headersList.get("cookie");
+    
+    if (!cookieHeader) return null;
+    
+    const tokenMatch = cookieHeader.match(/token=([^;]+)/);
+    if (!tokenMatch) return null;
+    
+    const token = tokenMatch[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string; email: string; name: string };
+    
+    return { user: decoded };
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
  * Verify JWT token from cookie or Authorization header and extract userId
  * Returns userId or an error response
  */

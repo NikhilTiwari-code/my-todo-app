@@ -7,6 +7,10 @@ export interface IUser extends Document{
     name:string;
     email:string;
     password:string;
+    avatar?: string; // Profile photo URL
+    bio?: string; // User bio
+    followers: mongoose.Types.ObjectId[]; // Array of user IDs who follow this user
+    following: mongoose.Types.ObjectId[]; // Array of user IDs this user follows
     createdAt:Date;
     updatedAt:Date;
     comparePassword(enteredPassword: string): Promise<boolean>;
@@ -32,7 +36,24 @@ const userSchema:Schema<IUser> = new Schema({
         type:String,
         required:true,
         minlength:[6,"Password must be at least 6 characters long"]
-    }
+    },
+    avatar:{
+        type:String,
+        default: null
+    },
+    bio:{
+        type:String,
+        default: '',
+        maxlength: 500
+    },
+    followers:[{
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    following:[{
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 },{
     timestamps:true
 });
