@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IConversation extends Document {
   participants: mongoose.Types.ObjectId[];
@@ -10,6 +10,10 @@ export interface IConversation extends Document {
   unreadCount: Map<string, number>; // userId -> count
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IConversationModel extends Model<IConversation> {
+  findOrCreate(userId1: string, userId2: string): Promise<IConversation>;
 }
 
 const ConversationSchema = new Schema<IConversation>(
@@ -80,5 +84,5 @@ ConversationSchema.statics.findOrCreate = async function (
   return conversation;
 };
 
-export default mongoose.models.Conversation ||
-  mongoose.model<IConversation>("Conversation", ConversationSchema);
+export default (mongoose.models.Conversation ||
+  mongoose.model<IConversation, IConversationModel>("Conversation", ConversationSchema)) as IConversationModel;

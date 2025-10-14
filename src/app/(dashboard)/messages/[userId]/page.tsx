@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 import User from "@/models/user.models";
-import Conversation from "@/models/conversation.models";
+import Conversation, { IConversation } from "@/models/conversation.models";
 import connectToDb from "@/utils/db";
 
 interface PageProps {
@@ -31,7 +31,7 @@ export default async function ChatPage({ params }: PageProps) {
   }
 
   // Get or create conversation
-  const conversation = await (Conversation as any).findOrCreate(
+  const conversation = await Conversation.findOrCreate(
     session.user.id,
     userId
   );
@@ -53,7 +53,7 @@ export default async function ChatPage({ params }: PageProps) {
         {/* Chat window */}
         <div className="flex-1 overflow-hidden">
           <ChatWindow
-            conversationId={conversation._id.toString()}
+            conversationId={String(conversation._id)}
             otherUser={{
               _id: otherUser._id.toString(),
               name: otherUser.name,

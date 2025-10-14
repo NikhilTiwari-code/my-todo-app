@@ -180,7 +180,7 @@ export default function FollowingPage() {
           <div className="text-6xl mb-4">👥</div>
           <h3 className="text-xl font-semibold mb-2">Not following anyone yet</h3>
           <p className="text-muted-foreground">
-            {data?.user.name} isn't following anyone yet
+            {data?.user.name} isn&apos;t following anyone yet
           </p>
         </Card>
       )}

@@ -105,7 +105,7 @@ export default function UserProfilePage() {
   const [localFollowersCount, setLocalFollowersCount] = useState<number | null>(null);
   const [localIsFollowing, setLocalIsFollowing] = useState<boolean | null>(null);
 
-  const { data: userData, isLoading: userLoading, refetch: refetchUser } = useQuery({
+  const { data: userData, isLoading: userLoading } = useQuery({
     queryKey: ["user", userId],
     queryFn: () => fetchUser(userId),
   });
@@ -317,7 +317,7 @@ export default function UserProfilePage() {
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">
-                {userData.user.name}'s Todos
+                {userData.user.name}&apos;s Todos
               </h2>
             </div>
 
@@ -455,7 +455,7 @@ export default function UserProfilePage() {
                 <div className="text-6xl mb-4">📭</div>
                 <h3 className="text-xl font-semibold mb-2">No todos yet</h3>
                 <p className="text-muted-foreground">
-                  {userData.user.name} hasn't created any todos yet
+                  {userData.user.name} hasn&apos;t created any todos yet
                 </p>
               </div>
             )}

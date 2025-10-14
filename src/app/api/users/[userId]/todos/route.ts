@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import connectToDb from "@/utils/db";
 import User from "@/models/user.models";
-import Todo from "@/models/todos.model";
-import { isValidObjectId } from "mongoose";
+import Todo, { ITodo } from "@/models/todos.model";
+import { isValidObjectId, type FilterQuery } from "mongoose";
 
 // GET all todos for a specific user
 export async function GET(
@@ -52,7 +52,11 @@ export async function GET(
     }
 
     // Build query
+<<<<<<< HEAD
     const query: Record<string, unknown> = { owner: userId };
+=======
+  const query: FilterQuery<ITodo> = { owner: userId };
+>>>>>>> image
 
     if (priority && priority !== "all") {
       query.priority = priority;
@@ -70,19 +74,18 @@ export async function GET(
     }
 
     // Get todos with pagination
-    const [todos, total] = await Promise.all([
-      Todo.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      Todo.countDocuments(query),
-    ]);
+    const todos = (await Todo.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)) as ITodo[];
+
+    const total = await Todo.countDocuments(query);
 
     return NextResponse.json(
       {
         success: true,
         data: {
-          todos: todos.map(todo => ({
+          todos: todos.map((todo: ITodo) => ({
             id: todo._id,
             title: todo.title,
             description: todo.description,

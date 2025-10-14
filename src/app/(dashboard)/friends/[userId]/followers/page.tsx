@@ -180,7 +180,7 @@ export default function FollowersPage() {
           <div className="text-6xl mb-4">👥</div>
           <h3 className="text-xl font-semibold mb-2">No followers yet</h3>
           <p className="text-muted-foreground">
-            {data?.user.name} doesn't have any followers yet
+            {data?.user.name} doesn&apos;t have any followers yet
           </p>
         </Card>
       )}
