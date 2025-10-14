@@ -2,6 +2,7 @@
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 const PORT = process.env.PORT || 4000;
 
@@ -36,22 +37,36 @@ function getSanitizedJwtSecret() {
   return raw.replace(/["'`]/g, "").replace(/\s+/g, "").trim();
 }
 
+function sha256Prefix(input) {
+  try {
+    return crypto.createHash("sha256").update(input, "utf8").digest("hex").slice(0, 12);
+  } catch {
+    return "<hash-error>";
+  }
+}
+
 // Authentication middleware
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   
   console.log("🔐 Socket authentication attempt...");
-  const secret = getSanitizedJwtSecret();
-  console.log("🔑 JWT_SECRET exists:", !!secret);
-  console.log("🔑 JWT_SECRET first 10 chars:", secret.substring(0, 10));
-  console.log("🔑 JWT_SECRET last 10 chars:", secret.substring(secret.length - 10));
-  console.log("🔑 JWT_SECRET length:", secret.length);
+  const rawSecret = process.env.JWT_SECRET || "";
+  const sanitizedSecret = getSanitizedJwtSecret();
+  const aliasSecrets = (process.env.JWT_SECRET_ALIASES || "").split(",").map(s => s.trim()).filter(Boolean);
+  const candidateSecrets = [rawSecret, sanitizedSecret, ...aliasSecrets].filter(Boolean);
+
+  console.log("🔑 Raw JWT_SECRET exists:", !!rawSecret);
+  console.log("🔑 Raw len:", rawSecret.length, "sha256:", sha256Prefix(rawSecret));
+  console.log("🔑 Sanitized len:", sanitizedSecret.length, "sha256:", sha256Prefix(sanitizedSecret));
+  if (aliasSecrets.length) {
+    console.log("🔑 Alias secrets:", aliasSecrets.map((s, i) => ({ i, len: s.length, sha256: sha256Prefix(s) })));
+  }
   // Avoid dumping full secret in logs in production; last 2 char codes help spot hidden chars
-  if (secret.length >= 2) {
+  if (rawSecret.length >= 2) {
     console.log(
       "🔑 JWT_SECRET last 2 char codes:",
-      secret.charCodeAt(secret.length - 2),
-      secret.charCodeAt(secret.length - 1)
+      rawSecret.charCodeAt(rawSecret.length - 2),
+      rawSecret.charCodeAt(rawSecret.length - 1)
     );
   }
   
@@ -63,27 +78,37 @@ io.use((socket, next) => {
   console.log("🎫 Token received (first 20 chars):", token.substring(0, 20) + "...");
   console.log("🎫 Token length:", token.length);
 
-  try {
-    const decoded = jwt.verify(token, secret);
-    console.log("✅ Token verified successfully");
-    console.log("📦 Decoded payload:", JSON.stringify(decoded, null, 2));
-    
-    const userId = decoded.id || decoded.userId || decoded._id || decoded.sub;
-    
-    if (!userId) {
-      console.log("❌ No user ID in token");
-      return next(new Error("Authentication error"));
+  let decoded = null;
+  let usedSecretInfo = null;
+  for (let i = 0; i < candidateSecrets.length; i++) {
+    const sec = candidateSecrets[i];
+    try {
+      decoded = jwt.verify(token, sec);
+      usedSecretInfo = { index: i, len: sec.length, sha256: sha256Prefix(sec) };
+      break;
+    } catch (e) {
+      // try next
     }
-    
-    socket.data.userId = userId;
-    console.log("✅ User authenticated:", userId);
-    next();
-  } catch (err) {
-    console.log("❌ Token verification failed:", err.message);
-    console.log("❌ Error name:", err.name);
-    console.log("❌ Full error:", err);
-    next(new Error("Authentication error"));
   }
+
+  if (!decoded) {
+    console.log("❌ Token verification failed with all candidate secrets. Tried:", candidateSecrets.map((s, i) => ({ i, len: s.length, sha256: sha256Prefix(s) })));
+    return next(new Error("Authentication error"));
+  }
+
+  console.log("✅ Token verified successfully with secret:", usedSecretInfo);
+  console.log("📦 Decoded payload:", JSON.stringify(decoded, null, 2));
+  
+  const userId = decoded.id || decoded.userId || decoded._id || decoded.sub;
+  
+  if (!userId) {
+    console.log("❌ No user ID in token");
+    return next(new Error("Authentication error"));
+  }
+  
+  socket.data.userId = userId;
+  console.log("✅ User authenticated:", userId);
+  next();
 });
 
 // Connection handler
