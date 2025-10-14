@@ -1,9 +1,9 @@
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
-require("dotenv").config();
 
-const port = parseInt(process.env.PORT || "3001", 10);
+// Railway Socket Server v1.0
+const PORT = process.env.PORT || 4000;
 
 // Store online users: userId -> socketId
 const onlineUsers = new Map();
@@ -18,7 +18,11 @@ const server = createServer((req, res) => {
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.NEXT_PUBLIC_APP_URL || "*",
+    origin: [
+      "http://localhost:3000",
+      "https://my-todo-app-gilt.vercel.app",
+      process.env.FRONTEND_URL,
+    ].filter(Boolean),
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -194,6 +198,6 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(port, () => {
-  console.log(`🚀 Socket.io server running on port ${port}`);
+server.listen(PORT, () => {
+  console.log(`🚀 Socket.io server running on port ${PORT}`);
 });
