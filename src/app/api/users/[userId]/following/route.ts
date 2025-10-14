@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectToDb from "@/utils/db";
-import User from "@/models/user.models";
+import User, { IUser } from "@/models/user.models";
+import Todo from "@/models/todos.model";
 import { getServerSession } from "@/utils/auth";
+import mongoose from "mongoose";
 
 export async function GET(
   request: NextRequest,
@@ -31,20 +33,21 @@ export async function GET(
 
     // Get following details with additional stats
     const followingWithDetails = await Promise.all(
-      user.following.map(async (followedUser: any) => {
-        // Count todos for each followed user
-        const todoCount = await require("@/models/todos.model")
-          .default.countDocuments({ owner: followedUser._id });
+      user.following.map(async (followedUserId: mongoose.Types.ObjectId) => {
+        const followedUser = await User.findById(followedUserId).lean() as IUser | null;
+        if (!followedUser) return null;
         
-        const completedCount = await require("@/models/todos.model")
-          .default.countDocuments({ owner: followedUser._id, isCompleted: true });
+        // Count todos for each followed user
+        const todoCount = await Todo.countDocuments({ owner: followedUser._id });
+        
+        const completedCount = await Todo.countDocuments({ owner: followedUser._id, isCompleted: true });
 
         // Check if current user follows this person
         let isFollowing = false;
         if (currentUserId) {
           const currentUser = await User.findById(currentUserId);
           isFollowing = currentUser?.following.some(
-            (id: any) => String(id) === String(followedUser._id)
+            (id) => String(id) === String(followedUser._id)
           ) || false;
         }
 
@@ -67,6 +70,9 @@ export async function GET(
       })
     );
 
+    // Filter out nulls
+    const validFollowing = followingWithDetails.filter((f): f is NonNullable<typeof f> => f !== null);
+
     return NextResponse.json(
       {
         success: true,
@@ -75,13 +81,13 @@ export async function GET(
             id: String(user._id),
             name: user.name,
           },
-          following: followingWithDetails,
-          total: followingWithDetails.length,
+          following: validFollowing,
+          total: validFollowing.length,
         },
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching following:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },

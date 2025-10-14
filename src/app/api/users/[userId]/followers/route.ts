@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectToDb from "@/utils/db";
-import User from "@/models/user.models";
+import User, { IUser } from "@/models/user.models";
+import Todo from "@/models/todos.model";
 import { getServerSession } from "@/utils/auth";
+import mongoose from "mongoose";
 
 export async function GET(
   request: NextRequest,
@@ -31,20 +33,21 @@ export async function GET(
 
     // Get follower details with additional stats
     const followersWithDetails = await Promise.all(
-      user.followers.map(async (follower: any) => {
-        // Count todos for each follower
-        const todoCount = await require("@/models/todos.model")
-          .default.countDocuments({ owner: follower._id });
+      user.followers.map(async (followerId: mongoose.Types.ObjectId) => {
+        const follower = await User.findById(followerId).lean() as IUser | null;
+        if (!follower) return null;
         
-        const completedCount = await require("@/models/todos.model")
-          .default.countDocuments({ owner: follower._id, isCompleted: true });
+        // Count todos for each follower
+        const todoCount = await Todo.countDocuments({ owner: follower._id });
+        
+        const completedCount = await Todo.countDocuments({ owner: follower._id, isCompleted: true });
 
         // Check if current user follows this follower
         let isFollowing = false;
         if (currentUserId) {
           const currentUser = await User.findById(currentUserId);
           isFollowing = currentUser?.following.some(
-            (id: any) => String(id) === String(follower._id)
+            (id) => String(id) === String(follower._id)
           ) || false;
         }
 
@@ -67,6 +70,9 @@ export async function GET(
       })
     );
 
+    // Filter out nulls
+    const validFollowers = followersWithDetails.filter((f): f is NonNullable<typeof f> => f !== null);
+
     return NextResponse.json(
       {
         success: true,
@@ -75,13 +81,13 @@ export async function GET(
             id: String(user._id),
             name: user.name,
           },
-          followers: followersWithDetails,
-          total: followersWithDetails.length,
+          followers: validFollowers,
+          total: validFollowers.length,
         },
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching followers:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },

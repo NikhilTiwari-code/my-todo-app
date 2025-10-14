@@ -48,7 +48,7 @@ export async function GET(
 
     // Check if current user is following this user
     const isFollowing = currentUserId 
-      ? user.followers.some((followerId: any) => followerId.toString() === currentUserId)
+      ? user.followers.some((followerId) => followerId.toString() === currentUserId)
       : false;
 
     // Get user's todo counts
