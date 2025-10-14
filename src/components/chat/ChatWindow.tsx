@@ -78,19 +78,41 @@ export function ChatWindow({
     if (!socket) return;
 
     // Receive new messages
-    socket.on("message:receive", (message: Message) => {
-      if (
-        message.sender._id === otherUser._id ||
-        message.receiver._id === otherUser._id
-      ) {
-        setMessages((prev) => [...prev, message]);
-
-        // Mark as read
-        fetch(`/api/messages/${conversationId}`, {
-          method: "PATCH",
+    const handleMessageReceive = (message: Message) => {
+      console.log("📩 Message received via socket:", message);
+      
+      // Check if this message belongs to the current conversation
+      // Message is for this chat if: sender is otherUser OR receiver is otherUser
+      const isSenderOtherUser = typeof message.sender === 'object' 
+        ? message.sender._id === otherUser._id 
+        : message.sender === otherUser._id;
+      
+      const isReceiverOtherUser = typeof message.receiver === 'object'
+        ? message.receiver._id === otherUser._id
+        : message.receiver === otherUser._id;
+      
+      if (isSenderOtherUser || isReceiverOtherUser) {
+        setMessages((prev) => {
+          // Prevent duplicate messages
+          const messageExists = prev.some(m => m._id === message._id);
+          if (messageExists) {
+            console.log("⚠️ Duplicate message prevented");
+            return prev;
+          }
+          console.log("✅ Message added to chat");
+          return [...prev, message];
         });
+
+        // Mark as read if message is from other user
+        if (isSenderOtherUser) {
+          fetch(`/api/messages/${conversationId}`, {
+            method: "PATCH",
+          }).catch(err => console.error("Failed to mark as read:", err));
+        }
       }
-    });
+    };
+
+    socket.on("message:receive", handleMessageReceive);
 
     // Typing indicators
     socket.on("typing:start", ({ userId }) => {
@@ -106,7 +128,7 @@ export function ChatWindow({
     });
 
     return () => {
-      socket.off("message:receive");
+      socket.off("message:receive", handleMessageReceive);
       socket.off("typing:start");
       socket.off("typing:stop");
     };
@@ -140,39 +162,56 @@ export function ChatWindow({
     if (!newMessage.trim() || isSending) return;
 
     setIsSending(true);
+    const messageContent = newMessage.trim();
+    setNewMessage(""); // Clear input immediately for better UX
 
     try {
+      console.log("📤 Sending message to:", otherUser._id);
+      
       // Save to database
       const res = await fetch(`/api/messages/${conversationId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: newMessage.trim(),
+          content: messageContent,
           receiverId: otherUser._id,
         }),
       });
 
+      if (!res.ok) {
+        throw new Error("Failed to send message");
+      }
+
       const message = await res.json();
+      console.log("✅ Message saved to DB:", message._id);
 
-      // Add to local state
-      setMessages((prev) => [...prev, message]);
+      // Add to local state immediately (optimistic update)
+      setMessages((prev) => {
+        // Prevent duplicates
+        const exists = prev.some(m => m._id === message._id);
+        if (exists) return prev;
+        return [...prev, message];
+      });
 
-      // Emit via socket
-      if (socket) {
+      // Emit via socket to receiver
+      if (socket && isConnected) {
+        console.log("📡 Emitting message via socket");
         socket.emit("message:send", {
           receiverId: otherUser._id,
           message,
         });
+      } else {
+        console.warn("⚠️ Socket not connected, message saved but not sent in real-time");
       }
 
       // Stop typing indicator
-      if (socket) {
+      if (socket && isConnected) {
         socket.emit("typing:stop", { receiverId: otherUser._id });
       }
-
-      setNewMessage("");
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("❌ Error sending message:", error);
+      // Restore message on error
+      setNewMessage(messageContent);
     } finally {
       setIsSending(false);
     }

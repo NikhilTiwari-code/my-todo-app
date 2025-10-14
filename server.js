@@ -80,15 +80,15 @@ app.prepare().then(() => {
     socket.on("message:send", (data) => {
       const { receiverId, message } = data;
       
+      console.log(`💬 Message from ${userId} to ${receiverId}`);
+      
       // Check if receiver is online
       const isReceiverOnline = onlineUsers.has(receiverId);
       
       // Emit to receiver if online
       if (isReceiverOnline) {
-        io.to(`user:${receiverId}`).emit("message:receive", {
-          ...message,
-          sender: userId,
-        });
+        console.log(`✅ Receiver ${receiverId} is online, delivering message`);
+        io.to(`user:${receiverId}`).emit("message:receive", message);
         
         // Emit delivery confirmation back to sender
         socket.emit("message:delivered", {
