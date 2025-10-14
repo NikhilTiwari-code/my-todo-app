@@ -271,9 +271,7 @@ export function VideoCall({
       } else {
         // Start screen sharing
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: {
-            cursor: "always",
-          },
+          video: true,
           audio: false,
         });
 
