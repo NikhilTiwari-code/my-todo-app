@@ -99,11 +99,11 @@ export function IncomingCallNotification({
   if (!incomingCall) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-8 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-6 sm:p-8 shadow-2xl">
         <div className="flex flex-col items-center text-center">
           {/* Caller avatar */}
-          <div className="mb-6 animate-pulse">
+          <div className="mb-4 sm:mb-6 animate-pulse">
             <UserAvatar
               avatar={incomingCall.callerAvatar}
               name={incomingCall.callerName}
@@ -112,32 +112,34 @@ export function IncomingCallNotification({
           </div>
 
           {/* Caller name */}
-          <h2 className="mb-2 text-2xl font-bold text-white">
+          <h2 className="mb-2 text-xl sm:text-2xl font-bold text-white">
             {incomingCall.callerName}
           </h2>
-          <p className="mb-8 flex items-center gap-2 text-white/80">
-            <Video className="h-5 w-5" />
+          <p className="mb-6 sm:mb-8 flex items-center gap-2 text-sm sm:text-base text-white/80">
+            <Video className="h-4 w-4 sm:h-5 sm:w-5" />
             Incoming video call...
           </p>
 
           {/* Action buttons */}
-          <div className="flex w-full gap-4">
+          <div className="flex w-full gap-3 sm:gap-4">
             {/* Reject */}
             <button
               onClick={handleReject}
-              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-red-500 px-6 py-4 font-semibold text-white transition-all hover:bg-red-600 hover:scale-105"
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-red-500 px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-semibold text-white transition-all hover:bg-red-600 hover:scale-105 active:scale-95"
             >
-              <PhoneOff className="h-5 w-5" />
-              Decline
+              <PhoneOff className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline">Decline</span>
+              <span className="sm:hidden">✕</span>
             </button>
 
             {/* Accept */}
             <button
               onClick={handleAccept}
-              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-green-500 px-6 py-4 font-semibold text-white transition-all hover:bg-green-600 hover:scale-105 animate-pulse"
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-green-500 px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-semibold text-white transition-all hover:bg-green-600 hover:scale-105 animate-pulse active:scale-95"
             >
-              <Phone className="h-5 w-5" />
-              Accept
+              <Phone className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline">Accept</span>
+              <span className="sm:hidden">✓</span>
             </button>
           </div>
         </div>

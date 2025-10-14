@@ -362,7 +362,7 @@ export function VideoCall({
         )}
 
         {/* Local video (picture-in-picture) */}
-        <div className="absolute right-4 top-4 h-40 w-56 overflow-hidden rounded-lg border-2 border-white/20 shadow-2xl">
+        <div className="absolute right-2 top-2 sm:right-4 sm:top-4 h-24 w-32 sm:h-40 sm:w-56 overflow-hidden rounded-lg border-2 border-white/20 shadow-2xl">
           <video
             ref={localVideoRef}
             autoPlay
@@ -372,18 +372,18 @@ export function VideoCall({
           />
           {!isVideoEnabled && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-              <VideoOff className="h-8 w-8 text-white/50" />
+              <VideoOff className="h-4 w-4 sm:h-8 sm:w-8 text-white/50" />
             </div>
           )}
         </div>
 
         {/* Controls */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 transform">
-          <div className="flex items-center gap-4 rounded-full bg-black/60 px-6 py-4 backdrop-blur-lg">
+        <div className="absolute bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 transform px-4 w-full sm:w-auto">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 rounded-full bg-black/60 px-3 py-3 sm:px-6 sm:py-4 backdrop-blur-lg">
             {/* Toggle video */}
             <button
               onClick={toggleVideo}
-              className={`rounded-full p-4 transition-all ${
+              className={`rounded-full p-2 sm:p-4 transition-all ${
                 isVideoEnabled
                   ? "bg-white/20 hover:bg-white/30"
                   : "bg-red-500 hover:bg-red-600"
@@ -391,16 +391,16 @@ export function VideoCall({
               title={isVideoEnabled ? "Turn off camera" : "Turn on camera"}
             >
               {isVideoEnabled ? (
-                <Video className="h-6 w-6 text-white" />
+                <Video className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
               ) : (
-                <VideoOff className="h-6 w-6 text-white" />
+                <VideoOff className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
               )}
             </button>
 
             {/* Toggle audio */}
             <button
               onClick={toggleAudio}
-              className={`rounded-full p-4 transition-all ${
+              className={`rounded-full p-2 sm:p-4 transition-all ${
                 isAudioEnabled
                   ? "bg-white/20 hover:bg-white/30"
                   : "bg-red-500 hover:bg-red-600"
@@ -408,54 +408,54 @@ export function VideoCall({
               title={isAudioEnabled ? "Mute" : "Unmute"}
             >
               {isAudioEnabled ? (
-                <Mic className="h-6 w-6 text-white" />
+                <Mic className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
               ) : (
-                <MicOff className="h-6 w-6 text-white" />
+                <MicOff className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
               )}
             </button>
 
-            {/* Screen share */}
+            {/* Screen share - Hidden on mobile */}
             <button
               onClick={toggleScreenShare}
-              className={`rounded-full p-4 transition-all ${
+              className={`hidden sm:flex rounded-full p-2 sm:p-4 transition-all ${
                 isScreenSharing
                   ? "bg-blue-500 hover:bg-blue-600"
                   : "bg-white/20 hover:bg-white/30"
               }`}
               title={isScreenSharing ? "Stop sharing" : "Share screen"}
             >
-              <MonitorUp className="h-6 w-6 text-white" />
+              <MonitorUp className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
             </button>
 
             {/* End call */}
             <button
               onClick={handleEndCall}
-              className="rounded-full bg-red-500 p-4 transition-all hover:bg-red-600"
+              className="rounded-full bg-red-500 p-2 sm:p-4 transition-all hover:bg-red-600"
               title="End call"
             >
-              <PhoneOff className="h-6 w-6 text-white" />
+              <PhoneOff className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
             </button>
 
-            {/* Fullscreen */}
+            {/* Fullscreen - Hidden on mobile */}
             <button
               onClick={toggleFullScreen}
-              className="rounded-full bg-white/20 p-4 transition-all hover:bg-white/30"
+              className="hidden sm:flex rounded-full bg-white/20 p-2 sm:p-4 transition-all hover:bg-white/30"
               title={isFullScreen ? "Exit fullscreen" : "Fullscreen"}
             >
               {isFullScreen ? (
-                <Minimize2 className="h-6 w-6 text-white" />
+                <Minimize2 className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
               ) : (
-                <Maximize2 className="h-6 w-6 text-white" />
+                <Maximize2 className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
               )}
             </button>
           </div>
         </div>
 
         {/* User info */}
-        <div className="absolute left-4 top-4">
-          <div className="rounded-lg bg-black/60 px-4 py-2 backdrop-blur-lg">
-            <p className="text-sm font-semibold text-white">{otherUser.name}</p>
-            <p className="text-xs text-white/70">
+        <div className="absolute left-2 top-2 sm:left-4 sm:top-4">
+          <div className="rounded-lg bg-black/60 px-3 py-1.5 sm:px-4 sm:py-2 backdrop-blur-lg">
+            <p className="text-xs sm:text-sm font-semibold text-white">{otherUser.name}</p>
+            <p className="text-[10px] sm:text-xs text-white/70">
               {callStatus === "connected" ? "Connected" : "Connecting..."}
             </p>
           </div>
