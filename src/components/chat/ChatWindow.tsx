@@ -251,13 +251,10 @@ export function ChatWindow({
     }
   };
 
-  // Start video call
+  // Start video call - Always allow for now, let WebRTC handle connection
   const handleStartVideoCall = () => {
-    if (!isOnline) {
-      alert(`${otherUser.name} is offline. You can only call when they're online.`);
-      return;
-    }
-
+    console.log("🎥 Starting video call with:", otherUser.name);
+    
     const callId = `call_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     setActiveCallId(callId);
     setIsCallInitiator(true);
@@ -362,20 +359,15 @@ export function ChatWindow({
             </div>
           </div>
 
-          {/* Call buttons */}
+          {/* Call buttons - Always enabled for now */}
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             {/* Video call button */}
             <button
               type="button"
               onClick={handleStartVideoCall}
-              disabled={!isOnline}
-              className={`rounded-full p-2 sm:p-2.5 transition ${
-                isOnline
-                  ? "hover:bg-white/10 text-white"
-                  : "cursor-not-allowed opacity-30 text-white/50"
-              }`}
+              className="rounded-full p-2 sm:p-2.5 transition hover:bg-white/10 text-white"
               aria-label="Video call"
-              title={isOnline ? "Start video call" : "User is offline"}
+              title="Start video call"
             >
               <Video className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
@@ -384,14 +376,9 @@ export function ChatWindow({
             <button
               type="button"
               onClick={handleStartVideoCall}
-              disabled={!isOnline}
-              className={`rounded-full p-2 sm:p-2.5 transition ${
-                isOnline
-                  ? "hover:bg-white/10 text-white"
-                  : "cursor-not-allowed opacity-30 text-white/50"
-              }`}
+              className="rounded-full p-2 sm:p-2.5 transition hover:bg-white/10 text-white"
               aria-label="Audio call"
-              title={isOnline ? "Start audio call" : "User is offline"}
+              title="Start audio call"
             >
               <Phone className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
