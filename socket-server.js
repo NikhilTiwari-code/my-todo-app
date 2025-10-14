@@ -29,16 +29,31 @@ const io = new Server(server, {
   },
 });
 
+// Helper to sanitize secrets (remove stray whitespace/newlines)
+function getSanitizedJwtSecret() {
+  const raw = process.env.JWT_SECRET || "";
+  // Remove any quotes, whitespace, or newlines that might have been pasted in
+  return raw.replace(/["'`]/g, "").replace(/\s+/g, "").trim();
+}
+
 // Authentication middleware
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   
   console.log("🔐 Socket authentication attempt...");
-  console.log("🔑 JWT_SECRET exists:", !!process.env.JWT_SECRET);
-  console.log("🔑 JWT_SECRET first 10 chars:", process.env.JWT_SECRET?.substring(0, 10));
-  console.log("🔑 JWT_SECRET last 10 chars:", process.env.JWT_SECRET?.substring(-10));
-  console.log("🔑 JWT_SECRET length:", process.env.JWT_SECRET?.length);
-  console.log("🔑 FULL JWT_SECRET:", process.env.JWT_SECRET);
+  const secret = getSanitizedJwtSecret();
+  console.log("🔑 JWT_SECRET exists:", !!secret);
+  console.log("🔑 JWT_SECRET first 10 chars:", secret.substring(0, 10));
+  console.log("🔑 JWT_SECRET last 10 chars:", secret.substring(secret.length - 10));
+  console.log("🔑 JWT_SECRET length:", secret.length);
+  // Avoid dumping full secret in logs in production; last 2 char codes help spot hidden chars
+  if (secret.length >= 2) {
+    console.log(
+      "🔑 JWT_SECRET last 2 char codes:",
+      secret.charCodeAt(secret.length - 2),
+      secret.charCodeAt(secret.length - 1)
+    );
+  }
   
   if (!token) {
     console.log("❌ No token provided");
@@ -49,7 +64,7 @@ io.use((socket, next) => {
   console.log("🎫 Token length:", token.length);
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, secret);
     console.log("✅ Token verified successfully");
     console.log("📦 Decoded payload:", JSON.stringify(decoded, null, 2));
     
