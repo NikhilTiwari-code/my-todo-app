@@ -41,15 +41,30 @@ app.prepare().then(() => {
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     
+    console.log("🔐 Socket authentication attempt...");
+    
     if (!token) {
+      console.log("❌ No token provided");
       return next(new Error("Authentication error"));
     }
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.data.userId = decoded.id;
+      console.log("✅ Token verified, decoded payload:", decoded);
+      
+      // Check for userId in different fields
+      const userId = decoded.id || decoded.userId || decoded._id || decoded.sub;
+      
+      if (!userId) {
+        console.log("❌ No user ID found in token payload:", decoded);
+        return next(new Error("Authentication error"));
+      }
+      
+      socket.data.userId = userId;
+      console.log("✅ User authenticated:", userId);
       next();
     } catch (err) {
+      console.log("❌ Token verification failed:", err.message);
       next(new Error("Authentication error"));
     }
   });
