@@ -53,8 +53,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         console.log("✅ Socket token retrieved successfully");
         console.log("🔌 Attempting to connect to socket...");
         
+        // Use Railway socket server URL in production
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 
+                         process.env.NEXT_PUBLIC_APP_URL || 
+                         "http://localhost:3000";
+        
+        console.log("🔗 Connecting to socket server:", socketUrl);
+        
         // Initialize Socket.io connection
-        socketInstance = io(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", {
+        socketInstance = io(socketUrl, {
           auth: {
             token,
           },

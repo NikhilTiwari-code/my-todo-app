@@ -1,0 +1,199 @@
+const { createServer } = require("http");
+const { Server } = require("socket.io");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
+
+const port = parseInt(process.env.PORT || "3001", 10);
+
+// Store online users: userId -> socketId
+const onlineUsers = new Map();
+
+// Store active video calls: callId -> { caller, receiver, offer, answer }
+const activeCalls = new Map();
+
+const server = createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("Socket.io server running");
+});
+
+const io = new Server(server, {
+  cors: {
+    origin: process.env.NEXT_PUBLIC_APP_URL || "*",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+// Socket.io authentication middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  
+  console.log("🔐 Socket authentication attempt...");
+  
+  if (!token) {
+    console.log("❌ No token provided");
+    return next(new Error("Authentication error"));
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("✅ Token verified, decoded payload:", decoded);
+    
+    // Check for userId in different fields
+    const userId = decoded.id || decoded.userId || decoded._id || decoded.sub;
+    
+    if (!userId) {
+      console.log("❌ No user ID found in token payload:", decoded);
+      return next(new Error("Authentication error"));
+    }
+    
+    socket.data.userId = userId;
+    console.log("✅ User authenticated:", userId);
+    next();
+  } catch (err) {
+    console.log("❌ Token verification failed:", err.message);
+    next(new Error("Authentication error"));
+  }
+});
+
+io.on("connection", (socket) => {
+  const userId = socket.data.userId;
+  console.log(`✅ User connected: ${userId}`);
+
+  // Store online user
+  onlineUsers.set(userId, socket.id);
+  
+  console.log(`📊 Total online users: ${onlineUsers.size}`, Array.from(onlineUsers.keys()));
+  
+  // Broadcast user online status to all clients
+  io.emit("user:online", { userId });
+
+  // Join user's personal room
+  socket.join(`user:${userId}`);
+
+  // Handle typing indicator
+  socket.on("typing:start", ({ receiverId }) => {
+    io.to(`user:${receiverId}`).emit("typing:start", { userId });
+  });
+
+  socket.on("typing:stop", ({ receiverId }) => {
+    io.to(`user:${receiverId}`).emit("typing:stop", { userId });
+  });
+
+  // Handle sending message
+  socket.on("message:send", (data) => {
+    const { receiverId, message } = data;
+    
+    console.log(`💬 Message from ${userId} to ${receiverId}`);
+    
+    // Check if receiver is online
+    const isReceiverOnline = onlineUsers.has(receiverId);
+    
+    // Emit to receiver if online
+    if (isReceiverOnline) {
+      console.log(`✅ Receiver ${receiverId} is online, delivering message`);
+      io.to(`user:${receiverId}`).emit("message:receive", message);
+      
+      // Emit delivery confirmation back to sender
+      socket.emit("message:delivered", {
+        messageId: message._id,
+        deliveredAt: new Date(),
+      });
+    } else {
+      // Receiver is offline, message saved in DB, will see when they come back
+      console.log(`📬 Message queued for offline user: ${receiverId}`);
+    }
+  });
+
+  // Handle message read
+  socket.on("message:read", ({ messageIds, senderId }) => {
+    io.to(`user:${senderId}`).emit("message:read", {
+      messageIds,
+      readBy: userId,
+      readAt: new Date(),
+    });
+  });
+
+  // ===== VIDEO CALL EVENTS =====
+
+  // Initiate call
+  socket.on("call:initiate", ({ receiverId, callId, offer }) => {
+    activeCalls.set(callId, {
+      caller: userId,
+      receiver: receiverId,
+      offer,
+      status: "ringing",
+    });
+
+    io.to(`user:${receiverId}`).emit("call:incoming", {
+      callId,
+      caller: userId,
+      offer,
+    });
+  });
+
+  // Answer call
+  socket.on("call:answer", ({ callId, answer }) => {
+    const call = activeCalls.get(callId);
+    if (call) {
+      call.answer = answer;
+      call.status = "active";
+      
+      io.to(`user:${call.caller}`).emit("call:answered", {
+        callId,
+        answer,
+      });
+    }
+  });
+
+  // Reject call
+  socket.on("call:reject", ({ callId }) => {
+    const call = activeCalls.get(callId);
+    if (call) {
+      io.to(`user:${call.caller}`).emit("call:rejected", { callId });
+      activeCalls.delete(callId);
+    }
+  });
+
+  // End call
+  socket.on("call:end", ({ callId }) => {
+    const call = activeCalls.get(callId);
+    if (call) {
+      const otherUser = call.caller === userId ? call.receiver : call.caller;
+      io.to(`user:${otherUser}`).emit("call:ended", { callId });
+      activeCalls.delete(callId);
+    }
+  });
+
+  // ICE candidate exchange
+  socket.on("call:ice-candidate", ({ callId, candidate, targetUserId }) => {
+    io.to(`user:${targetUserId}`).emit("call:ice-candidate", {
+      callId,
+      candidate,
+    });
+  });
+
+  // Disconnect handler
+  socket.on("disconnect", () => {
+    console.log(`❌ User disconnected: ${userId}`);
+    onlineUsers.delete(userId);
+    
+    console.log(`📊 Total online users after disconnect: ${onlineUsers.size}`, Array.from(onlineUsers.keys()));
+    
+    // Broadcast user offline status to all clients
+    io.emit("user:offline", { userId });
+
+    // End any active calls
+    activeCalls.forEach((call, callId) => {
+      if (call.caller === userId || call.receiver === userId) {
+        const otherUser = call.caller === userId ? call.receiver : call.caller;
+        io.to(`user:${otherUser}`).emit("call:ended", { callId });
+        activeCalls.delete(callId);
+      }
+    });
+  });
+});
+
+server.listen(port, () => {
+  console.log(`🚀 Socket.io server running on port ${port}`);
+});
