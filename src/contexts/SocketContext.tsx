@@ -59,6 +59,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                          "http://localhost:3000";
         
         console.log("🔗 Connecting to socket server:", socketUrl);
+        console.log("📍 Environment check:", {
+          SOCKET_URL: process.env.NEXT_PUBLIC_SOCKET_URL,
+          APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+        });
         
         // Initialize Socket.io connection
         socketInstance = io(socketUrl, {
