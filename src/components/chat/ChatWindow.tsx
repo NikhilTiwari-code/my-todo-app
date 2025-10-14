@@ -87,19 +87,41 @@ export function ChatWindow({
     if (!socket) return;
 
     // Receive new messages
-    socket.on("message:receive", (message: Message) => {
-      if (
-        message.sender._id === otherUser._id ||
-        message.receiver._id === otherUser._id
-      ) {
-        setMessages((prev) => [...prev, message]);
-
-        // Mark as read
-        fetch(`/api/messages/${conversationId}`, {
-          method: "PATCH",
+    const handleMessageReceive = (message: Message) => {
+      console.log("📩 Message received via socket:", message);
+      
+      // Check if this message belongs to the current conversation
+      // Message is for this chat if: sender is otherUser OR receiver is otherUser
+      const isSenderOtherUser = typeof message.sender === 'object' 
+        ? message.sender._id === otherUser._id 
+        : message.sender === otherUser._id;
+      
+      const isReceiverOtherUser = typeof message.receiver === 'object'
+        ? message.receiver._id === otherUser._id
+        : message.receiver === otherUser._id;
+      
+      if (isSenderOtherUser || isReceiverOtherUser) {
+        setMessages((prev) => {
+          // Prevent duplicate messages
+          const messageExists = prev.some(m => m._id === message._id);
+          if (messageExists) {
+            console.log("⚠️ Duplicate message prevented");
+            return prev;
+          }
+          console.log("✅ Message added to chat");
+          return [...prev, message];
         });
+
+        // Mark as read if message is from other user
+        if (isSenderOtherUser) {
+          fetch(`/api/messages/${conversationId}`, {
+            method: "PATCH",
+          }).catch(err => console.error("Failed to mark as read:", err));
+        }
       }
-    });
+    };
+
+    socket.on("message:receive", handleMessageReceive);
 
     // Typing indicators
     socket.on("typing:start", ({ userId }) => {
@@ -115,7 +137,7 @@ export function ChatWindow({
     });
 
     return () => {
-      socket.off("message:receive");
+      socket.off("message:receive", handleMessageReceive);
       socket.off("typing:start");
       socket.off("typing:stop");
     };
