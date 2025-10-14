@@ -27,9 +27,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     const token = Cookies.get("token");
     
     if (!token) {
+      console.log("❌ No token found, cannot connect to socket");
       return;
     }
 
+    console.log("🔌 Attempting to connect to socket...");
+    
     // Initialize Socket.io connection
     const socketInstance = io(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", {
       auth: {
@@ -38,10 +41,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
+      transports: ["websocket", "polling"], // Try websocket first, fallback to polling
     });
 
     socketInstance.on("connect", () => {
-      console.log("✅ Socket connected successfully");
+      console.log("✅ Socket connected successfully! Socket ID:", socketInstance.id);
       setIsConnected(true);
     });
 
@@ -51,7 +55,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     });
 
     socketInstance.on("connect_error", (error) => {
-      console.error("Socket connection error:", error.message);
+      console.error("❌ Socket connection error:", error.message);
+      console.error("Error details:", error);
       setIsConnected(false);
     });
 

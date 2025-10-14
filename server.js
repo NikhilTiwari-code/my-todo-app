@@ -61,6 +61,8 @@ app.prepare().then(() => {
     // Store online user
     onlineUsers.set(userId, socket.id);
     
+    console.log(`📊 Total online users: ${onlineUsers.size}`, Array.from(onlineUsers.keys()));
+    
     // Broadcast user online status to all clients
     io.emit("user:online", { userId });
 
@@ -174,6 +176,8 @@ app.prepare().then(() => {
     socket.on("disconnect", () => {
       console.log(`❌ User disconnected: ${userId}`);
       onlineUsers.delete(userId);
+      
+      console.log(`📊 Total online users after disconnect: ${onlineUsers.size}`, Array.from(onlineUsers.keys()));
       
       // Broadcast user offline status to all clients
       io.emit("user:offline", { userId });
