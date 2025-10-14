@@ -1,0 +1,8 @@
+{
+  "install": {
+    "modules": ["nodejs"]
+  },
+  "start": {
+    "cmd": "node socket-server.js"
+  }
+}
