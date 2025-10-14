@@ -67,21 +67,40 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         
         // Initialize Socket.io connection
         socketInstance = io(socketUrl, {
-          auth: async (cb) => {
-            // Fetch fresh token for each connection/reconnection attempt
-            try {
-              const freshToken = await getToken();
-              console.log("🔄 Using fresh token for connection");
-              cb({ token: freshToken });
-            } catch (error) {
-              console.error("❌ Failed to get fresh token:", error);
-              cb({ token: token }); // Fallback to original token
-            }
+          auth: {
+            token,
           },
-          reconnection: true,
-          reconnectionDelay: 1000,
-          reconnectionAttempts: 5,
+          reconnection: false, // Disable automatic reconnection
           transports: ["websocket", "polling"], // Try websocket first, fallback to polling
+        });
+
+        // Handle manual reconnection with fresh token
+        socketInstance.on("disconnect", async (reason) => {
+          console.log("❌ Socket disconnected, reason:", reason);
+          setIsConnected(false);
+          
+          // Only reconnect if it's not a manual disconnect
+          if (reason !== "io client disconnect") {
+            console.log("🔄 Attempting manual reconnection with fresh token...");
+            
+            try {
+              // Get fresh token
+              const freshToken = await getToken();
+              console.log("✅ Got fresh token for reconnection");
+              
+              // Update auth token
+              socketInstance.auth = { token: freshToken };
+              
+              // Reconnect
+              socketInstance.connect();
+            } catch (error) {
+              console.error("❌ Failed to get fresh token for reconnection:", error);
+              // Retry after delay
+              setTimeout(() => {
+                socketInstance.connect();
+              }, 2000);
+            }
+          }
         });
 
         socketInstance.on("connect", () => {
