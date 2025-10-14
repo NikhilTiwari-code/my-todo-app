@@ -55,9 +55,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         console.log("🔌 Attempting to connect to socket...");
         
         // Use Railway socket server URL in production
-        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 
-                         process.env.NEXT_PUBLIC_APP_URL || 
-                         "http://localhost:3000";
+        let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 
+                        process.env.NEXT_PUBLIC_APP_URL || 
+                        "http://localhost:3000";
+        
+        // Ensure URL has protocol for production
+        if (socketUrl && !socketUrl.startsWith('http')) {
+          socketUrl = `https://${socketUrl}`;
+        }
         
         console.log("🔗 Connecting to socket server:", socketUrl);
         console.log("📍 Environment check:", {
@@ -74,13 +79,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           transports: ["websocket", "polling"], // Try websocket first, fallback to polling
         });
 
+        socketInstance.on("connect", () => {
+          console.log("✅ Socket connected successfully! Socket ID:", socketInstance!.id);
+          setIsConnected(true);
+        });
+
         // Handle manual reconnection with fresh token
         socketInstance.on("disconnect", async (reason) => {
           console.log("❌ Socket disconnected, reason:", reason);
           setIsConnected(false);
           
           // Only reconnect if it's not a manual disconnect
-          if (reason !== "io client disconnect") {
+          if (reason !== "io client disconnect" && socketInstance) {
             console.log("🔄 Attempting manual reconnection with fresh token...");
             
             try {
@@ -88,29 +98,20 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
               const freshToken = await getToken();
               console.log("✅ Got fresh token for reconnection");
               
-              // Update auth token
+              // Update auth token and reconnect
               socketInstance.auth = { token: freshToken };
-              
-              // Reconnect
               socketInstance.connect();
             } catch (error) {
               console.error("❌ Failed to get fresh token for reconnection:", error);
               // Retry after delay
               setTimeout(() => {
-                socketInstance.connect();
+                if (socketInstance) {
+                  console.log("🔄 Retrying connection...");
+                  socketInstance.connect();
+                }
               }, 2000);
             }
           }
-        });
-
-        socketInstance.on("connect", () => {
-          console.log("✅ Socket connected successfully! Socket ID:", socketInstance!.id);
-          setIsConnected(true);
-        });
-
-        socketInstance.on("disconnect", () => {
-          console.log("❌ Socket disconnected");
-          setIsConnected(false);
         });
 
         socketInstance.on("connect_error", (error: any) => {

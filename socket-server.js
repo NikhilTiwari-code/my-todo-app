@@ -35,6 +35,7 @@ io.use((socket, next) => {
   
   console.log("🔐 Socket authentication attempt...");
   console.log("🔑 JWT_SECRET exists:", !!process.env.JWT_SECRET);
+  console.log("🔑 JWT_SECRET first 10 chars:", process.env.JWT_SECRET?.substring(0, 10));
   console.log("🔑 JWT_SECRET length:", process.env.JWT_SECRET?.length);
   
   if (!token) {
@@ -43,6 +44,7 @@ io.use((socket, next) => {
   }
 
   console.log("🎫 Token received (first 20 chars):", token.substring(0, 20) + "...");
+  console.log("🎫 Token length:", token.length);
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
