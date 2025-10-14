@@ -21,6 +21,7 @@ const io = new Server(server, {
     origin: [
       "http://localhost:3000",
       "https://my-todo-app-gilt.vercel.app",
+      /\.vercel\.app$/,  // Allow all Vercel preview deployments
       process.env.FRONTEND_URL,
     ].filter(Boolean),
     methods: ["GET", "POST"],
