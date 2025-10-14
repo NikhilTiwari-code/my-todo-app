@@ -317,6 +317,15 @@ export function ChatWindow({
 
       {/* Chat interface */}
       <div className="flex flex-col h-full">
+        {/* Connection status warning */}
+        {!isConnected && (
+          <div className="bg-amber-500/20 border-b border-amber-500/30 px-4 py-2 text-center">
+            <p className="text-xs sm:text-sm text-amber-200">
+              ⚠️ Not connected to real-time messaging. Please refresh or check your connection.
+            </p>
+          </div>
+        )}
+
         {/* Header - WhatsApp style with back button */}
         <div className="flex items-center gap-2 sm:gap-4 border-b border-white/10 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 px-2 sm:px-4 py-2 sm:py-3 text-white">
           {/* Back button */}
