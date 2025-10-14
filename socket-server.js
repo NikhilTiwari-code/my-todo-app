@@ -34,15 +34,20 @@ io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   
   console.log("🔐 Socket authentication attempt...");
+  console.log("🔑 JWT_SECRET exists:", !!process.env.JWT_SECRET);
+  console.log("🔑 JWT_SECRET length:", process.env.JWT_SECRET?.length);
   
   if (!token) {
     console.log("❌ No token provided");
     return next(new Error("Authentication error"));
   }
 
+  console.log("🎫 Token received (first 20 chars):", token.substring(0, 20) + "...");
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("✅ Token verified");
+    console.log("✅ Token verified successfully");
+    console.log("📦 Decoded payload:", JSON.stringify(decoded, null, 2));
     
     const userId = decoded.id || decoded.userId || decoded._id || decoded.sub;
     
@@ -56,6 +61,8 @@ io.use((socket, next) => {
     next();
   } catch (err) {
     console.log("❌ Token verification failed:", err.message);
+    console.log("❌ Error name:", err.name);
+    console.log("❌ Full error:", err);
     next(new Error("Authentication error"));
   }
 });
