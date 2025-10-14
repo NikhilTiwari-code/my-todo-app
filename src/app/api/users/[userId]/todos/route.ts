@@ -52,11 +52,7 @@ export async function GET(
     }
 
     // Build query
-<<<<<<< HEAD
-    const query: Record<string, unknown> = { owner: userId };
-=======
-  const query: FilterQuery<ITodo> = { owner: userId };
->>>>>>> image
+    const query: FilterQuery<ITodo> = { owner: userId };
 
     if (priority && priority !== "all") {
       query.priority = priority;

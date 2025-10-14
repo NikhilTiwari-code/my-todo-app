@@ -27,11 +27,7 @@ export async function GET() {
 
         // Check if current user is following this user
         const isFollowing = currentUserId 
-<<<<<<< HEAD
-          ? user.followers.some((followerId: string) => followerId.toString() === currentUserId)
-=======
           ? user.followers.some((followerId) => followerId.toString() === currentUserId)
->>>>>>> image
           : false;
 
         return {
