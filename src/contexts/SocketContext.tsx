@@ -27,6 +27,19 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let socketInstance: Socket | null = null;
 
+    const getToken = async () => {
+      const response = await fetch("/api/auth/socket-token", {
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to get token: ${response.status}`);
+      }
+
+      const { token } = await response.json();
+      return token;
+    };
+
     const initializeSocket = async () => {
       // Only initialize socket if user is authenticated
       if (!isAuthenticated) {
@@ -37,19 +50,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log("🔄 Fetching socket token for authenticated user...");
         
-        // Get token from the API endpoint since it's httpOnly cookie
-        const response = await fetch("/api/auth/socket-token", {
-          credentials: "include",
-        });
-        
-        if (!response.ok) {
-          console.error("❌ Failed to get socket token:", response.status, response.statusText);
-          const errorText = await response.text();
-          console.error("Error details:", errorText);
-          return;
-        }
-
-        const { token } = await response.json();
+        const token = await getToken();
         console.log("✅ Socket token retrieved successfully");
         console.log("🔌 Attempting to connect to socket...");
         
@@ -66,8 +67,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         
         // Initialize Socket.io connection
         socketInstance = io(socketUrl, {
-          auth: {
-            token,
+          auth: async (cb) => {
+            // Fetch fresh token for each connection/reconnection attempt
+            try {
+              const freshToken = await getToken();
+              console.log("🔄 Using fresh token for connection");
+              cb({ token: freshToken });
+            } catch (error) {
+              console.error("❌ Failed to get fresh token:", error);
+              cb({ token: token }); // Fallback to original token
+            }
           },
           reconnection: true,
           reconnectionDelay: 1000,
