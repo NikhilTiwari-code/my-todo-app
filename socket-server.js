@@ -1,21 +1,21 @@
+// Socket.io Server for Railway Deployment
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 
-// Railway Socket Server v1.0
 const PORT = process.env.PORT || 4000;
 
-// Store online users: userId -> socketId
+// Store online users
 const onlineUsers = new Map();
-
-// Store active video calls: callId -> { caller, receiver, offer, answer }
 const activeCalls = new Map();
 
+// Create HTTP server
 const server = createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("Socket.io server running");
+  res.end("Socket.io server is running!");
 });
 
+// Initialize Socket.io
 const io = new Server(server, {
   cors: {
     origin: [
@@ -28,7 +28,7 @@ const io = new Server(server, {
   },
 });
 
-// Socket.io authentication middleware
+// Authentication middleware
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   
@@ -41,13 +41,12 @@ io.use((socket, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("✅ Token verified, decoded payload:", decoded);
+    console.log("✅ Token verified");
     
-    // Check for userId in different fields
     const userId = decoded.id || decoded.userId || decoded._id || decoded.sub;
     
     if (!userId) {
-      console.log("❌ No user ID found in token payload:", decoded);
+      console.log("❌ No user ID in token");
       return next(new Error("Authentication error"));
     }
     
@@ -60,22 +59,18 @@ io.use((socket, next) => {
   }
 });
 
+// Connection handler
 io.on("connection", (socket) => {
   const userId = socket.data.userId;
   console.log(`✅ User connected: ${userId}`);
 
-  // Store online user
   onlineUsers.set(userId, socket.id);
+  console.log(`📊 Total online users: ${onlineUsers.size}`);
   
-  console.log(`📊 Total online users: ${onlineUsers.size}`, Array.from(onlineUsers.keys()));
-  
-  // Broadcast user online status to all clients
   io.emit("user:online", { userId });
-
-  // Join user's personal room
   socket.join(`user:${userId}`);
 
-  // Handle typing indicator
+  // Typing indicators
   socket.on("typing:start", ({ receiverId }) => {
     io.to(`user:${receiverId}`).emit("typing:start", { userId });
   });
@@ -84,32 +79,21 @@ io.on("connection", (socket) => {
     io.to(`user:${receiverId}`).emit("typing:stop", { userId });
   });
 
-  // Handle sending message
+  // Message handling
   socket.on("message:send", (data) => {
     const { receiverId, message } = data;
-    
     console.log(`💬 Message from ${userId} to ${receiverId}`);
     
-    // Check if receiver is online
-    const isReceiverOnline = onlineUsers.has(receiverId);
-    
-    // Emit to receiver if online
-    if (isReceiverOnline) {
-      console.log(`✅ Receiver ${receiverId} is online, delivering message`);
+    if (onlineUsers.has(receiverId)) {
+      console.log(`✅ Delivering message to online user`);
       io.to(`user:${receiverId}`).emit("message:receive", message);
-      
-      // Emit delivery confirmation back to sender
       socket.emit("message:delivered", {
         messageId: message._id,
         deliveredAt: new Date(),
       });
-    } else {
-      // Receiver is offline, message saved in DB, will see when they come back
-      console.log(`📬 Message queued for offline user: ${receiverId}`);
     }
   });
 
-  // Handle message read
   socket.on("message:read", ({ messageIds, senderId }) => {
     io.to(`user:${senderId}`).emit("message:read", {
       messageIds,
@@ -118,62 +102,47 @@ io.on("connection", (socket) => {
     });
   });
 
-  // ===== VIDEO CALL EVENTS =====
-
-  // Initiate call
+  // Video call events
   socket.on("call:initiate", ({ receiverId, callId, offer }) => {
-    activeCalls.set(callId, {
-      caller: userId,
-      receiver: receiverId,
-      offer,
-      status: "ringing",
-    });
-
-    io.to(`user:${receiverId}`).emit("call:incoming", {
-      callId,
-      caller: userId,
-      offer,
-    });
+    console.log(`📞 Call initiated: ${callId}`);
+    activeCalls.set(callId, { caller: userId, receiver: receiverId, offer, status: "ringing" });
+    io.to(`user:${receiverId}`).emit("call:incoming", { callId, caller: userId, offer });
   });
 
-  // Answer call
   socket.on("call:answer", ({ callId, answer }) => {
     const call = activeCalls.get(callId);
     if (call) {
       call.answer = answer;
       call.status = "active";
-      
-      io.to(`user:${call.caller}`).emit("call:answered", {
-        callId,
-        answer,
-      });
+      console.log(`✅ Call answered: ${callId}`);
+      io.to(`user:${call.caller}`).emit("call:answered", { callId, answer });
     }
   });
 
-  // Reject call
   socket.on("call:reject", ({ callId }) => {
     const call = activeCalls.get(callId);
     if (call) {
+      console.log(`❌ Call rejected: ${callId}`);
       io.to(`user:${call.caller}`).emit("call:rejected", { callId });
       activeCalls.delete(callId);
     }
   });
 
-  // End call
   socket.on("call:end", ({ callId }) => {
     const call = activeCalls.get(callId);
     if (call) {
+      console.log(`📴 Call ended: ${callId}`);
       const otherUser = call.caller === userId ? call.receiver : call.caller;
       io.to(`user:${otherUser}`).emit("call:ended", { callId });
       activeCalls.delete(callId);
     }
   });
 
-  // ICE candidate exchange
   socket.on("call:ice-candidate", ({ callId, candidate, targetUserId }) => {
     io.to(`user:${targetUserId}`).emit("call:ice-candidate", {
       callId,
       candidate,
+      fromUserId: userId,
     });
   });
 
@@ -181,13 +150,10 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log(`❌ User disconnected: ${userId}`);
     onlineUsers.delete(userId);
+    console.log(`📊 Total online users: ${onlineUsers.size}`);
     
-    console.log(`📊 Total online users after disconnect: ${onlineUsers.size}`, Array.from(onlineUsers.keys()));
-    
-    // Broadcast user offline status to all clients
     io.emit("user:offline", { userId });
 
-    // End any active calls
     activeCalls.forEach((call, callId) => {
       if (call.caller === userId || call.receiver === userId) {
         const otherUser = call.caller === userId ? call.receiver : call.caller;
