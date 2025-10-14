@@ -36,7 +36,9 @@ io.use((socket, next) => {
   console.log("🔐 Socket authentication attempt...");
   console.log("🔑 JWT_SECRET exists:", !!process.env.JWT_SECRET);
   console.log("🔑 JWT_SECRET first 10 chars:", process.env.JWT_SECRET?.substring(0, 10));
+  console.log("🔑 JWT_SECRET last 10 chars:", process.env.JWT_SECRET?.substring(-10));
   console.log("🔑 JWT_SECRET length:", process.env.JWT_SECRET?.length);
+  console.log("🔑 FULL JWT_SECRET:", process.env.JWT_SECRET);
   
   if (!token) {
     console.log("❌ No token provided");
