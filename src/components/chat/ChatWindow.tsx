@@ -3,7 +3,9 @@
 import { useEffect, useState, useRef } from "react";
 import { useSocket } from "@/contexts/SocketContext";
 import { UserAvatar } from "@/components/users/UserAvatar";
-import { Send, Loader2 } from "lucide-react";
+import { VideoCall } from "@/components/video/VideoCall";
+import { IncomingCallNotification } from "@/components/video/IncomingCallNotification";
+import { Send, Loader2, Video, Phone } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface Message {
@@ -46,6 +48,13 @@ export function ChatWindow({
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Video call states
+  const [isInCall, setIsInCall] = useState(false);
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const [isCallInitiator, setIsCallInitiator] = useState(false);
+  const [callOtherUser, setCallOtherUser] = useState<typeof otherUser | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -140,42 +149,100 @@ export function ChatWindow({
     if (!newMessage.trim() || isSending) return;
 
     setIsSending(true);
+    const messageContent = newMessage.trim();
+    setNewMessage(""); // Clear input immediately for better UX
 
     try {
+      console.log("📤 Sending message to:", otherUser._id);
+      
       // Save to database
       const res = await fetch(`/api/messages/${conversationId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: newMessage.trim(),
+          content: messageContent,
           receiverId: otherUser._id,
         }),
       });
 
+      if (!res.ok) {
+        throw new Error("Failed to send message");
+      }
+
       const message = await res.json();
+      console.log("✅ Message saved to DB:", message._id);
 
-      // Add to local state
-      setMessages((prev) => [...prev, message]);
+      // Add to local state immediately (optimistic update)
+      setMessages((prev) => {
+        // Prevent duplicates
+        const exists = prev.some(m => m._id === message._id);
+        if (exists) return prev;
+        return [...prev, message];
+      });
 
-      // Emit via socket
-      if (socket) {
+      // Emit via socket to receiver
+      if (socket && isConnected) {
+        console.log("📡 Emitting message via socket");
         socket.emit("message:send", {
           receiverId: otherUser._id,
           message,
         });
+      } else {
+        console.warn("⚠️ Socket not connected, message saved but not sent in real-time");
       }
 
       // Stop typing indicator
-      if (socket) {
+      if (socket && isConnected) {
         socket.emit("typing:stop", { receiverId: otherUser._id });
       }
-
-      setNewMessage("");
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("❌ Error sending message:", error);
+      // Restore message on error
+      setNewMessage(messageContent);
     } finally {
       setIsSending(false);
     }
+  };
+
+  // Start video call
+  const handleStartVideoCall = () => {
+    if (!isOnline) {
+      alert(`${otherUser.name} is offline. You can only call when they're online.`);
+      return;
+    }
+
+    const callId = `call_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    setActiveCallId(callId);
+    setIsCallInitiator(true);
+    setCallOtherUser(otherUser);
+    setIsInCall(true);
+  };
+
+  // Accept incoming call
+  const handleAcceptCall = (
+    callId: string,
+    caller: string,
+    callerName: string,
+    callerAvatar?: string,
+    offer?: RTCSessionDescriptionInit
+  ) => {
+    setActiveCallId(callId);
+    setIsCallInitiator(false);
+    setCallOtherUser({
+      _id: caller,
+      name: callerName,
+      email: "", // Not needed for call
+      avatar: callerAvatar,
+    });
+    setIsInCall(true);
+  };
+
+  // End call
+  const handleEndCall = () => {
+    setIsInCall(false);
+    setActiveCallId(null);
+    setIsCallInitiator(false);
+    setCallOtherUser(null);
   };
 
   if (isLoading) {
@@ -187,48 +254,80 @@ export function ChatWindow({
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 border-b border-white/10 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 px-6 py-4 text-white">
-        <div className="flex items-center gap-4">
-          <UserAvatar avatar={otherUser.avatar} name={otherUser.name} size="md" />
-          <div>
-            <h2 className="text-lg font-semibold tracking-wide">
-              {otherUser.name}
-            </h2>
-            <p className="mt-1 flex items-center gap-2 text-sm text-white/70">
-              {isOnline ? (
-                <>
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.7)]"></span>
-                  <span className="uppercase tracking-widest text-emerald-300">Active now</span>
-                </>
-              ) : (
-                <>
-                  <span className="h-2 w-2 rounded-full bg-white/40"></span>
-                  <span className="uppercase tracking-widest text-white/50">Offline - they will see it later</span>
-                </>
-              )}
-            </p>
+    <>
+      {/* Incoming call notification */}
+      {!isInCall && <IncomingCallNotification onAccept={handleAcceptCall} />}
+
+      {/* Video call */}
+      {isInCall && activeCallId && callOtherUser && (
+        <VideoCall
+          callId={activeCallId}
+          otherUser={callOtherUser}
+          isInitiator={isCallInitiator}
+          onCallEnd={handleEndCall}
+        />
+      )}
+
+      {/* Chat interface */}
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4 border-b border-white/10 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 px-6 py-4 text-white">
+          <div className="flex items-center gap-4">
+            <UserAvatar avatar={otherUser.avatar} name={otherUser.name} size="md" />
+            <div>
+              <h2 className="text-lg font-semibold tracking-wide">
+                {otherUser.name}
+              </h2>
+              <p className="mt-1 flex items-center gap-2 text-sm text-white/70">
+                {isOnline ? (
+                  <>
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.7)]"></span>
+                    <span className="uppercase tracking-widest text-emerald-300">Active now</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="h-2 w-2 rounded-full bg-white/40"></span>
+                    <span className="uppercase tracking-widest text-white/50">Offline - they will see it later</span>
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Audio call button */}
+            <button
+              type="button"
+              onClick={handleStartVideoCall}
+              disabled={!isOnline}
+              className={`rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white transition ${
+                isOnline
+                  ? "bg-white/10 hover:bg-white/20"
+                  : "bg-white/5 cursor-not-allowed opacity-50"
+              }`}
+              aria-label="Audio call"
+              title={isOnline ? "Start audio call" : "User is offline"}
+            >
+              <Phone className="h-5 w-5" />
+            </button>
+
+            {/* Video call button */}
+            <button
+              type="button"
+              onClick={handleStartVideoCall}
+              disabled={!isOnline}
+              className={`rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white transition ${
+                isOnline
+                  ? "bg-white/10 hover:bg-white/20"
+                  : "bg-white/5 cursor-not-allowed opacity-50"
+              }`}
+              aria-label="Video call"
+              title={isOnline ? "Start video call" : "User is offline"}
+            >
+              <Video className="h-5 w-5" />
+            </button>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white transition hover:bg-white/20"
-            aria-label="Call"
-          >
-            Call
-          </button>
-          <button
-            type="button"
-            className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white transition hover:bg-white/20"
-            aria-label="Video call"
-          >
-            Video
-          </button>
-        </div>
-      </div>
 
       {/* Messages */}
       <div className="relative flex-1 overflow-hidden">
@@ -352,6 +451,7 @@ export function ChatWindow({
           </p>
         )}
       </form>
-    </div>
+      </div>
+    </>
   );
 }
