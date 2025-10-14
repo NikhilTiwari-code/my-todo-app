@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useSocket } from "@/contexts/SocketContext";
 import { UserAvatar } from "@/components/users/UserAvatar";
 import { VideoCall } from "@/components/video/VideoCall";
 import { IncomingCallNotification } from "@/components/video/IncomingCallNotification";
-import { Send, Loader2, Video, Phone } from "lucide-react";
+import { Send, Loader2, Video, Phone, ArrowLeft } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface Message {
@@ -42,6 +43,7 @@ export function ChatWindow({
   otherUser,
   currentUserId,
 }: ChatWindowProps) {
+  const router = useRouter();
   const { socket, isConnected, onlineUsers } = useSocket();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -58,7 +60,12 @@ export function ChatWindow({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Check if other user is online - this will update automatically when onlineUsers changes
   const isOnline = onlineUsers.has(otherUser._id);
+
+  console.log("🔍 Online users:", Array.from(onlineUsers));
+  console.log("🔍 Other user ID:", otherUser._id);
+  console.log("🔍 Is online:", isOnline);
 
   // Load messages
   useEffect(() => {
@@ -82,25 +89,36 @@ export function ChatWindow({
     loadMessages();
   }, [conversationId]);
 
-  // Socket event listeners
+  // Socket event listeners - FIXED for real-time messaging
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !isConnected) {
+      console.log("⚠️ Socket not available or not connected");
+      return;
+    }
+
+    console.log("🔌 Setting up socket listeners for conversation:", conversationId);
 
     // Receive new messages
     const handleMessageReceive = (message: Message) => {
-      console.log("📩 Message received via socket:", message);
+      console.log("📩 RAW message received via socket:", JSON.stringify(message, null, 2));
       
       // Check if this message belongs to the current conversation
-      // Message is for this chat if: sender is otherUser OR receiver is otherUser
-      const isSenderOtherUser = typeof message.sender === 'object' 
-        ? message.sender._id === otherUser._id 
-        : message.sender === otherUser._id;
+      // Message is for this chat if it involves current user and other user
+      const senderId = typeof message.sender === 'object' ? message.sender._id : message.sender;
+      const receiverId = typeof message.receiver === 'object' ? message.receiver._id : message.receiver;
       
-      const isReceiverOtherUser = typeof message.receiver === 'object'
-        ? message.receiver._id === otherUser._id
-        : message.receiver === otherUser._id;
+      console.log("🔍 Message sender ID:", senderId);
+      console.log("🔍 Message receiver ID:", receiverId);
+      console.log("🔍 Current user ID:", currentUserId);
+      console.log("🔍 Other user ID:", otherUser._id);
       
-      if (isSenderOtherUser || isReceiverOtherUser) {
+      // This message is for this conversation if:
+      // (I sent it to them) OR (They sent it to me)
+      const isSentByMe = senderId === currentUserId && receiverId === otherUser._id;
+      const isSentToMe = senderId === otherUser._id && receiverId === currentUserId;
+      
+      if (isSentByMe || isSentToMe) {
+        console.log("✅ Message belongs to this conversation");
         setMessages((prev) => {
           // Prevent duplicate messages
           const messageExists = prev.some(m => m._id === message._id);
@@ -113,35 +131,42 @@ export function ChatWindow({
         });
 
         // Mark as read if message is from other user
-        if (isSenderOtherUser) {
+        if (isSentToMe) {
           fetch(`/api/messages/${conversationId}`, {
             method: "PATCH",
           }).catch(err => console.error("Failed to mark as read:", err));
         }
+      } else {
+        console.log("❌ Message not for this conversation");
+      }
+    };
+
+    // Typing indicators
+    const handleTypingStart = ({ userId }: { userId: string }) => {
+      console.log("✍️ User typing:", userId);
+      if (userId === otherUser._id) {
+        setIsTyping(true);
+      }
+    };
+
+    const handleTypingStop = ({ userId }: { userId: string }) => {
+      console.log("✍️ User stopped typing:", userId);
+      if (userId === otherUser._id) {
+        setIsTyping(false);
       }
     };
 
     socket.on("message:receive", handleMessageReceive);
-
-    // Typing indicators
-    socket.on("typing:start", ({ userId }) => {
-      if (userId === otherUser._id) {
-        setIsTyping(true);
-      }
-    });
-
-    socket.on("typing:stop", ({ userId }) => {
-      if (userId === otherUser._id) {
-        setIsTyping(false);
-      }
-    });
+    socket.on("typing:start", handleTypingStart);
+    socket.on("typing:stop", handleTypingStop);
 
     return () => {
+      console.log("🔌 Cleaning up socket listeners");
       socket.off("message:receive", handleMessageReceive);
-      socket.off("typing:start");
-      socket.off("typing:stop");
+      socket.off("typing:start", handleTypingStart);
+      socket.off("typing:stop", handleTypingStop);
     };
-  }, [socket, conversationId, otherUser._id]);
+  }, [socket, isConnected, conversationId, otherUser._id, currentUserId]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -292,65 +317,74 @@ export function ChatWindow({
 
       {/* Chat interface */}
       <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-2 sm:gap-4 border-b border-white/10 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 px-3 sm:px-6 py-3 sm:py-4 text-white">
-          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+        {/* Header - WhatsApp style with back button */}
+        <div className="flex items-center gap-2 sm:gap-4 border-b border-white/10 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 px-2 sm:px-4 py-2 sm:py-3 text-white">
+          {/* Back button */}
+          <button
+            onClick={() => router.back()}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors flex-shrink-0"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+          </button>
+
+          {/* User info */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <div className="flex-shrink-0">
               <UserAvatar avatar={otherUser.avatar} name={otherUser.name} size="sm" />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-sm sm:text-lg font-semibold tracking-wide truncate">
+              <h2 className="text-sm sm:text-base font-semibold tracking-wide truncate">
                 {otherUser.name}
               </h2>
-              <p className="mt-0.5 sm:mt-1 flex items-center gap-1 sm:gap-2 text-[10px] sm:text-sm text-white/70">
+              <p className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-white/70">
                 {isOnline ? (
                   <>
-                    <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.7)] flex-shrink-0"></span>
-                    <span className="uppercase tracking-widest text-emerald-300 truncate hidden sm:inline">Active now</span>
-                    <span className="uppercase tracking-widest text-emerald-300 truncate sm:hidden">Active</span>
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.7)] flex-shrink-0 animate-pulse"></span>
+                    <span className="uppercase tracking-widest text-emerald-300 truncate">Online</span>
                   </>
                 ) : (
                   <>
-                    <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-white/40 flex-shrink-0"></span>
-                    <span className="uppercase tracking-widest text-white/50 truncate hidden sm:inline">Offline - they will see it later</span>
-                    <span className="uppercase tracking-widest text-white/50 truncate sm:hidden">Offline</span>
+                    <span className="h-2 w-2 rounded-full bg-white/40 flex-shrink-0"></span>
+                    <span className="uppercase tracking-widest text-white/50 truncate">Offline</span>
                   </>
                 )}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
-            {/* Audio call button */}
-            <button
-              type="button"
-              onClick={handleStartVideoCall}
-              disabled={!isOnline}
-              className={`rounded-full p-2 sm:px-4 sm:py-2 text-white transition ${
-                isOnline
-                  ? "bg-white/10 hover:bg-white/20"
-                  : "bg-white/5 cursor-not-allowed opacity-50"
-              }`}
-              aria-label="Audio call"
-              title={isOnline ? "Start audio call" : "User is offline"}
-            >
-              <Phone className="h-4 w-4 sm:h-5 sm:w-5" />
-            </button>
-
+          {/* Call buttons */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             {/* Video call button */}
             <button
               type="button"
               onClick={handleStartVideoCall}
               disabled={!isOnline}
-              className={`rounded-full p-2 sm:px-4 sm:py-2 text-white transition ${
+              className={`rounded-full p-2 sm:p-2.5 transition ${
                 isOnline
-                  ? "bg-white/10 hover:bg-white/20"
-                  : "bg-white/5 cursor-not-allowed opacity-50"
+                  ? "hover:bg-white/10 text-white"
+                  : "cursor-not-allowed opacity-30 text-white/50"
               }`}
               aria-label="Video call"
               title={isOnline ? "Start video call" : "User is offline"}
             >
-              <Video className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Video className="h-5 w-5 sm:h-6 sm:w-6" />
+            </button>
+
+            {/* Audio call button */}
+            <button
+              type="button"
+              onClick={handleStartVideoCall}
+              disabled={!isOnline}
+              className={`rounded-full p-2 sm:p-2.5 transition ${
+                isOnline
+                  ? "hover:bg-white/10 text-white"
+                  : "cursor-not-allowed opacity-30 text-white/50"
+              }`}
+              aria-label="Audio call"
+              title={isOnline ? "Start audio call" : "User is offline"}
+            >
+              <Phone className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
           </div>
         </div>
