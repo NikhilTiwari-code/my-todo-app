@@ -22,13 +22,17 @@ export default async function ChatPage({ params }: PageProps) {
 
   await connectToDb();
 
-  // Get other user details
-  const otherUser = await User.findById(userId).select("name email avatar").lean();
+  // Get other user details - using lean() for faster query
+  const otherUser = await User.findById(userId)
+    .select("name email avatar")
+    .lean()
+    .exec();
+    
   if (!otherUser) {
     redirect("/messages");
   }
 
-  // Get or create conversation
+  // Get or create conversation - this is already optimized in the model
   const conversation = await Conversation.findOrCreate(
     session.user.id,
     userId

@@ -17,7 +17,7 @@ export async function GET(
 
     const { conversationId } = await params;
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const limit = parseInt(searchParams.get("limit") || "30"); // Reduced from 50 to 30
     const before = searchParams.get("before"); // Cursor for pagination
 
     await connectToDb();
@@ -41,12 +41,12 @@ export async function GET(
       query.createdAt = { $lt: new Date(before) };
     }
 
-    // Fetch messages
+    // Fetch messages with a single populate call for better performance
     const messages = await Message.find(query)
       .sort({ createdAt: -1 })
       .limit(limit)
-      .populate("sender", "name email avatar")
-      .populate("receiver", "name email avatar");
+      .populate("sender", "name email avatar") // Only populate sender
+      .lean(); // Use lean() for faster queries - returns plain JS objects
 
     return NextResponse.json({
       messages: messages.reverse(), // Reverse to show oldest first
