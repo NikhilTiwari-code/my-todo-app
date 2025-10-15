@@ -3,10 +3,11 @@ import jwt from "jsonwebtoken";
 import { getUserIdFromRequest } from "@/utils/auth";
 
 // This secret is ONLY for the socket token. It's different from the main JWT secret.
-const SOCKET_JWT_SECRET = process.env.SOCKET_JWT_SECRET;
+// Hardcoded fallback for testing - REPLACE IN PRODUCTION!
+const SOCKET_JWT_SECRET = process.env.SOCKET_JWT_SECRET || "6f28588fc52bdfd1c268d8ffc16fcf1f333d653a04e6ec0a065f5911938d5176";
 
-if (!SOCKET_JWT_SECRET) {
-  console.error("FATAL: SOCKET_JWT_SECRET is not defined in the environment.");
+if (!process.env.SOCKET_JWT_SECRET) {
+  console.warn("⚠️ WARNING: Using hardcoded SOCKET_JWT_SECRET for testing. Set environment variable in production!");
 }
 
 export async function GET(req: NextRequest) {
