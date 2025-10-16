@@ -125,6 +125,21 @@ io.on("connection", (socket) => {
     });
   });
 
+  // Story events
+  socket.on("story:new", ({ storyId, followers }) => {
+    console.log(`📸 New story posted: ${storyId}`);
+    // Notify all followers
+    followers.forEach((followerId) => {
+      if (onlineUsers.has(followerId)) {
+        io.to(`user:${followerId}`).emit("story:new", {
+          userId,
+          storyId,
+          createdAt: new Date(),
+        });
+      }
+    });
+  });
+
   // Video call events
   socket.on("call:initiate", ({ receiverId, callId, offer }) => {
     console.log(`📞 Call initiated: ${callId}`);
