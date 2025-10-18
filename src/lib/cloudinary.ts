@@ -150,6 +150,95 @@ export function getOptimizedImageUrl(
 }
 
 /**
+ * Upload video to Cloudinary for reels
+ * @param file - Base64 string or file path
+ * @param options - Additional upload options
+ */
+export async function uploadVideoToCloudinary(
+  file: string,
+  options: any = {}
+): Promise<CloudinaryUploadResult> {
+  try {
+    const result = await cloudinary.uploader.upload(file, {
+      folder: "reels",
+      resource_type: "video",
+      transformation: [
+        { quality: "auto" }, // Auto quality
+        { fetch_format: "auto" }, // Auto format
+      ],
+      ...options,
+    });
+
+    return {
+      public_id: result.public_id,
+      secure_url: result.secure_url,
+      width: result.width,
+      height: result.height,
+      format: result.format,
+      resource_type: result.resource_type,
+    };
+  } catch (error) {
+    console.error("Cloudinary video upload error:", error);
+    throw new Error("Failed to upload video");
+  }
+}
+
+/**
+ * Generate video thumbnail URL
+ */
+export function getVideoThumbnailUrl(
+  publicId: string,
+  options: {
+    width?: number;
+    height?: number;
+    time?: number; // Time in seconds for thumbnail
+  } = {}
+): string {
+  const {
+    width = 400,
+    height = 711, // 9:16 aspect ratio
+    time = 1, // First second
+  } = options;
+
+  return cloudinary.url(publicId, {
+    transformation: [
+      { width, height, crop: "fill" },
+      { video_sampling: "seconds:1" }, // Sample at 1 second
+      { start_offset: time },
+      { resource_type: "video" },
+      { format: "jpg" },
+    ],
+  });
+}
+
+/**
+ * Get optimized video URL with transformations
+ */
+export function getOptimizedVideoUrl(
+  publicId: string,
+  options: {
+    width?: number;
+    height?: number;
+    quality?: string;
+  } = {}
+): string {
+  const {
+    width = 720,
+    height = 1280, // 9:16 aspect ratio
+    quality = "auto",
+  } = options;
+
+  return cloudinary.url(publicId, {
+    transformation: [
+      { width, height, crop: "limit" },
+      { quality },
+      { fetch_format: "auto" },
+      { resource_type: "video" },
+    ],
+  });
+}
+
+/**
  * Extract public ID from Cloudinary URL
  */
 export function getPublicIdFromUrl(url: string): string {

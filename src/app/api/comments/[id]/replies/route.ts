@@ -8,7 +8,7 @@ import Comment from "@/models/comment.model";
 // GET - Get replies for a comment
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await getUserIdFromRequest(req);
@@ -23,7 +23,8 @@ export async function GET(
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
 
-    const replies = await Comment.getReplies(params.id, page, limit);
+    const { id } = await params;
+    const replies = await Comment.getReplies(id, page, limit);
 
     // Add isLiked flag
     const repliesWithFlags = replies.map((reply: any) => ({

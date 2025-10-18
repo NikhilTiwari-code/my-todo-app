@@ -23,6 +23,7 @@ export default function DashboardLayout({
   const navigation = [
     { name: "Todos", href: "/todos", icon: "✓" },
     { name: "Feed", href: "/feed", icon: "📱" },
+    { name: "Reels", href: "/reels", icon: "🎬" },
     { name: "Stories", href: "/stories", icon: "📸" },
     { name: "Friends", href: "/friends", icon: "👥" },
     { name: "Messages", href: "/messages", icon: "💬" },

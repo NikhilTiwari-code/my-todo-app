@@ -140,6 +140,46 @@ io.on("connection", (socket) => {
     });
   });
 
+  // Reel events
+  socket.on("reel:new", ({ reelId, followers }) => {
+    console.log(`🎬 New reel posted: ${reelId}`);
+    // Notify all followers
+    followers.forEach((followerId) => {
+      if (onlineUsers.has(followerId)) {
+        io.to(`user:${followerId}`).emit("reel:new", {
+          userId,
+          reelId,
+          createdAt: new Date(),
+        });
+      }
+    });
+  });
+
+  socket.on("reel:like", ({ reelId, reelOwnerId }) => {
+    console.log(`❤️ Reel liked: ${reelId}`);
+    // Notify reel owner
+    if (onlineUsers.has(reelOwnerId)) {
+      io.to(`user:${reelOwnerId}`).emit("reel:like", {
+        reelId,
+        likedBy: userId,
+        createdAt: new Date(),
+      });
+    }
+  });
+
+  socket.on("reel:comment", ({ reelId, reelOwnerId, commentText }) => {
+    console.log(`💬 Reel commented: ${reelId}`);
+    // Notify reel owner
+    if (onlineUsers.has(reelOwnerId)) {
+      io.to(`user:${reelOwnerId}`).emit("reel:comment", {
+        reelId,
+        commentedBy: userId,
+        commentText,
+        createdAt: new Date(),
+      });
+    }
+  });
+
   // Video call events
   socket.on("call:initiate", ({ receiverId, callId, offer }) => {
     console.log(`📞 Call initiated: ${callId}`);

@@ -8,7 +8,7 @@ import Comment from "@/models/comment.model";
 // DELETE - Delete comment (only owner)
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await getUserIdFromRequest(req);
@@ -19,7 +19,8 @@ export async function DELETE(
 
     await connectToDb();
 
-    const comment = await Comment.findById(params.id);
+    const { id } = await params;
+    const comment = await Comment.findById(id);
 
     if (!comment) {
       return NextResponse.json({ error: "Comment not found" }, { status: 404 });
@@ -30,7 +31,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const result = await Comment.deleteComment(params.id);
+    const result = await Comment.deleteComment(id);
 
     return NextResponse.json({
       success: true,

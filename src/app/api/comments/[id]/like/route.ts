@@ -8,9 +8,10 @@ import Comment from "@/models/comment.model";
 // POST - Toggle like on comment
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await getUserIdFromRequest(req);
     if ("error" in authResult) {
       return authResult.error;
@@ -19,7 +20,7 @@ export async function POST(
 
     await connectToDb();
 
-    const result = await Comment.toggleLike(params.id, userId);
+    const result = await Comment.toggleLike(id, userId);
 
     return NextResponse.json({
       success: true,
