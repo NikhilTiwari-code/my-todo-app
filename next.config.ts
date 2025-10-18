@@ -4,6 +4,15 @@ const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployment
   output: 'standalone',
   
+  // ⚡ Performance Optimizations
+  swcMinify: true, // Use SWC for faster minification
+  reactStrictMode: true, // Enable React strict mode
+  
+  // ⚡ Faster builds with caching
+  experimental: {
+    optimizePackageImports: ['framer-motion', 'lucide-react', 'react-hot-toast'],
+  },
+  
   // Image optimization
   images: {
     remotePatterns: [
@@ -82,6 +91,50 @@ const nextConfig: NextConfig = {
       },
     },
   }),
+  
+  // ⚡ Webpack optimizations for faster compilation
+  webpack: (config, { dev, isServer }) => {
+    // Optimize builds
+    if (!dev) {
+      config.optimization = {
+        ...config.optimization,
+        moduleIds: 'deterministic',
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            default: false,
+            vendors: false,
+            // Vendor chunk
+            vendor: {
+              name: 'vendor',
+              chunks: 'all',
+              test: /node_modules/,
+              priority: 20
+            },
+            // Common chunk
+            common: {
+              name: 'common',
+              minChunks: 2,
+              chunks: 'all',
+              priority: 10,
+              reuseExistingChunk: true,
+              enforce: true
+            }
+          }
+        }
+      };
+    }
+    
+    // Faster rebuilds in development
+    if (dev && !isServer) {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+      };
+    }
+    
+    return config;
+  },
 };
 
 export default nextConfig;

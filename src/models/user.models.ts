@@ -8,7 +8,14 @@ export interface IUser extends Document{
     email:string;
     password:string;
     avatar?: string; // Profile photo URL
+    coverPhoto?: string; // Cover photo URL
     bio?: string; // User bio
+    website?: string; // Personal website
+    location?: string; // City, Country
+    birthday?: Date; // Date of birth
+    gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
+    isPrivate: boolean; // Private account
+    isVerified: boolean; // Verified badge
     followers: mongoose.Types.ObjectId[]; // Array of user IDs who follow this user
     following: mongoose.Types.ObjectId[]; // Array of user IDs this user follows
     createdAt:Date;
@@ -41,10 +48,39 @@ const userSchema:Schema<IUser> = new Schema({
         type:String,
         default: null
     },
+    coverPhoto:{
+        type:String,
+        default: null
+    },
     bio:{
         type:String,
         default: '',
         maxlength: 500
+    },
+    website:{
+        type:String,
+        default: ''
+    },
+    location:{
+        type:String,
+        default: ''
+    },
+    birthday:{
+        type:Date,
+        default: null
+    },
+    gender:{
+        type:String,
+        enum: ['male', 'female', 'other', 'prefer_not_to_say'],
+        default: 'prefer_not_to_say'
+    },
+    isPrivate:{
+        type:Boolean,
+        default: false
+    },
+    isVerified:{
+        type:Boolean,
+        default: false
     },
     followers:[{
         type: Schema.Types.ObjectId,

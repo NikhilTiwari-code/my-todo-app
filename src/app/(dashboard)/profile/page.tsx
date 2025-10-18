@@ -3,240 +3,230 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { AvatarUpload } from "@/components/profile/AvatarUpload";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
+import { ProfileTabs } from "@/components/profile/ProfileTabs";
+import { ProfileGrid } from "@/components/profile/ProfileGrid";
+import { ProfileSkeleton, ProfileGridSkeleton } from "@/components/profile/ProfileSkeleton";
+import { EditProfileModal } from "@/components/profile/EditProfileModal";
+import toast from "react-hot-toast";
 
-interface ProfileData {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  bio?: string;
-  followersCount: number;
-  followingCount: number;
-  createdAt: string;
-}
+type TabType = "posts" | "reels" | "saved" | "tagged";
 
 export default function ProfilePage() {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
-  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  
+  const [activeTab, setActiveTab] = useState<TabType>("posts");
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [contentData, setContentData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [bio, setBio] = useState("");
-  const [isUpdatingBio, setIsUpdatingBio] = useState(false);
+  const [isContentLoading, setIsContentLoading] = useState(false);
 
   // Fetch profile data
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
+  const fetchProfileData = async () => {
     try {
+      setIsLoading(true);
       const res = await fetch("/api/profile", {
-        credentials: "include"
+        credentials: "include",
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         setProfileData(data.data.user);
-        setBio(data.data.user.bio || "");
+      } else {
+        toast.error("Failed to load profile");
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
+      toast.error("Failed to load profile");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleUpdateBio = async () => {
-    setIsUpdatingBio(true);
+  // Fetch content based on active tab
+  const fetchContent = async (tab: TabType) => {
     try {
-      const res = await fetch("/api/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ bio }),
-      });
+      setIsContentLoading(true);
+      
+      let endpoint = "";
+      switch (tab) {
+        case "posts":
+          endpoint = `/api/feed/user/${user?.id}`;
+          break;
+        case "reels":
+          endpoint = `/api/reels/user/${user?.id}`;
+          break;
+        case "saved":
+          endpoint = `/api/saved`;
+          break;
+        case "tagged":
+          endpoint = `/api/tagged/${user?.id}`;
+          break;
+      }
 
+      const res = await fetch(endpoint, { credentials: "include" });
+      
       if (res.ok) {
         const data = await res.json();
-        setProfileData(data.data.user);
-        alert("Bio updated successfully! ✅");
+        // Map data to unified format
+        const items = (data.data?.posts || data.data?.reels || data.data?.items || []).map((item: any) => ({
+          _id: item._id,
+          type: tab === "reels" ? "reel" : "post",
+          imageUrl: item.imageUrl || item.image,
+          videoUrl: item.videoUrl || item.video,
+          caption: item.caption,
+          likes: item.likes || [],
+          comments: item.comments?.length || 0,
+        }));
+        setContentData(items);
       } else {
-        alert("Failed to update bio");
+        setContentData([]);
       }
     } catch (error) {
-      console.error("Error updating bio:", error);
-      alert("Failed to update bio");
+      console.error("Error fetching content:", error);
+      setContentData([]);
     } finally {
-      setIsUpdatingBio(false);
+      setIsContentLoading(false);
     }
   };
 
-  if (isLoading) {
+  useEffect(() => {
+    if (user) {
+      fetchProfileData();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && profileData) {
+      fetchContent(activeTab);
+    }
+  }, [activeTab, user, profileData]);
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+  };
+
+  const handleEditClick = () => {
+    setIsEditModalOpen(true);
+  };
+
+  const handleShareClick = () => {
+    const url = `${window.location.origin}/profile/${user?.id}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Profile link copied! 🔗");
+  };
+
+  const handleCoverUploadSuccess = (coverUrl: string) => {
+    setProfileData((prev: any) => ({ ...prev, coverPhoto: coverUrl }));
+    fetchProfileData(); // Refresh profile data
+    refreshUser(); // Update auth context
+  };
+
+  const handleAvatarUploadSuccess = (avatarUrl: string) => {
+    setProfileData((prev: any) => ({ ...prev, avatar: avatarUrl }));
+    fetchProfileData(); // Refresh profile data
+    refreshUser(); // Update auth context
+  };
+
+  const handleProfileUpdateSuccess = () => {
+    fetchProfileData(); // Refresh profile data after edit
+    refreshUser(); // Update auth context
+  };
+
+  const handleItemClick = (item: any) => {
+    if (item.type === "reel") {
+      router.push(`/reels?id=${item._id}`);
+    } else {
+      router.push(`/feed?postId=${item._id}`);
+    }
+  };
+
+  if (!user) {
     return (
-      <div className="max-w-4xl mx-auto space-y-6 px-4">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-          Profile
-        </h1>
-        <Card>
-          <CardContent className="p-8">
-            <div className="animate-pulse space-y-4">
-              <div className="h-32 w-32 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto" />
-              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mx-auto" />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (isLoading || !profileData) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+          <ProfileSkeleton />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 px-4">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-        Profile Settings
-      </h1>
-
-      {/* Avatar Upload Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile Photo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AvatarUpload
-            currentAvatar={profileData?.avatar}
-            userName={user?.name || ""}
-            onUploadSuccess={async (avatarUrl) => {
-              if (profileData) {
-                setProfileData({ ...profileData, avatar: avatarUrl });
-              }
-              // Refresh auth context to update navbar avatar
-              await refreshUser();
+    <>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+          {/* Profile Header */}
+          <ProfileHeader
+            user={{
+              _id: profileData.id || user.id,
+              name: user.name,
+              email: user.email,
+              avatar: profileData.avatar || user.avatar,
+              coverPhoto: profileData.coverPhoto,
+              bio: profileData.bio,
+              website: profileData.website,
+              location: profileData.location,
+              isVerified: profileData.isVerified,
+              createdAt: profileData.createdAt,
+              followers: (user as any).followers || [],
+              following: (user as any).following || [],
             }}
+            currentUserId={user.id}
+            postsCount={activeTab === "posts" ? contentData.length : 0}
+            isFollowing={false}
+            onEditClick={handleEditClick}
+            onShareClick={handleShareClick}
+            onCoverUploadSuccess={handleCoverUploadSuccess}
+            onAvatarUploadSuccess={handleAvatarUploadSuccess}
           />
-        </CardContent>
-      </Card>
 
-      {/* Bio Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Bio</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-              Tell others about yourself (max 500 characters)
-            </label>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value.slice(0, 500))}
-              placeholder="I love building todo apps! 🚀"
-              rows={4}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white resize-none"
+          {/* Content Tabs & Grid */}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden">
+            <ProfileTabs
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              isOwner={true}
             />
-            <div className="text-sm text-gray-500 mt-1">
-              {bio.length}/500 characters
+
+            <div className="p-4">
+              {isContentLoading ? (
+                <ProfileGridSkeleton />
+              ) : (
+                <ProfileGrid items={contentData} onItemClick={handleItemClick} />
+              )}
             </div>
           </div>
-          <Button
-            onClick={handleUpdateBio}
-            disabled={isUpdatingBio || bio === profileData?.bio}
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-          >
-            {isUpdatingBio ? "Updating..." : "Update Bio"}
-          </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Social Stats */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Social Stats</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-6">
-            <button
-              onClick={() => profileData?.id && router.push(`/friends/${profileData.id}/followers`)}
-              className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800 rounded-lg hover:shadow-lg transition-all cursor-pointer"
-            >
-              <div className="text-4xl font-bold text-blue-600 dark:text-blue-300">
-                {profileData?.followersCount || 0}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Followers
-              </div>
-            </button>
-            <button
-              onClick={() => profileData?.id && router.push(`/friends/${profileData.id}/following`)}
-              className="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900 dark:to-purple-800 rounded-lg hover:shadow-lg transition-all cursor-pointer"
-            >
-              <div className="text-4xl font-bold text-purple-600 dark:text-purple-300">
-                {profileData?.followingCount || 0}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Following
-              </div>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Account Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Account Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Name
-            </label>
-            <p className="text-lg text-gray-900 dark:text-gray-100">
-              {user?.name || "N/A"}
-            </p>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Email
-            </label>
-            <p className="text-lg text-gray-900 dark:text-gray-100">
-              {user?.email || "N/A"}
-            </p>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Member Since
-            </label>
-            <p className="text-lg text-gray-900 dark:text-gray-100">
-              {profileData?.createdAt 
-                ? new Date(profileData.createdAt).toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric"
-                  })
-                : "N/A"}
-            </p>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              User ID
-            </label>
-            <p className="text-sm font-mono text-gray-600 dark:text-gray-400">
-              {user?.id || "N/A"}
-            </p>
-          </div>
-
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-            <Button variant="destructive" onClick={logout}>
-              Logout
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        user={{
+          _id: user.id,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar,
+          bio: profileData.bio,
+          website: profileData.website,
+          location: profileData.location,
+          birthday: profileData.birthday,
+          gender: profileData.gender,
+          isPrivate: profileData.isPrivate,
+        }}
+        onSuccess={handleProfileUpdateSuccess}
+      />
+    </>
   );
 }
