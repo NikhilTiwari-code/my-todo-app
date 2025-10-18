@@ -50,6 +50,8 @@ export function ChatWindow({
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   // Video call states
   const [isInCall, setIsInCall] = useState(false);
@@ -71,9 +73,10 @@ export function ChatWindow({
   useEffect(() => {
     const loadMessages = async () => {
       try {
-        const res = await fetch(`/api/messages/${conversationId}`);
+        const res = await fetch(`/api/messages/${conversationId}?limit=30`);
         const data = await res.json();
         setMessages(data.messages || []);
+        setHasMore(data.hasMore);
         setIsLoading(false);
 
         // Mark messages as read
@@ -88,6 +91,40 @@ export function ChatWindow({
 
     loadMessages();
   }, [conversationId]);
+
+  // Infinite scroll: load older messages when scrolled to top
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleScroll = async () => {
+      if (!messagesContainerRef.current || isLoadingMore || !hasMore) return;
+      const { scrollTop } = messagesContainerRef.current;
+      if (scrollTop < 50 && messages.length > 0) {
+        setIsLoadingMore(true);
+        // Get timestamp of oldest message
+        const oldest = messages[0];
+        const before = oldest.createdAt;
+        try {
+          const res = await fetch(`/api/messages/${conversationId}?limit=30&before=${encodeURIComponent(before)}`);
+          const data = await res.json();
+          if (data.messages && data.messages.length > 0) {
+            setMessages((prev) => [...data.messages, ...prev]);
+            setHasMore(data.hasMore);
+          } else {
+            setHasMore(false);
+          }
+        } catch (err) {
+          console.error("Error loading older messages:", err);
+        } finally {
+          setIsLoadingMore(false);
+        }
+      }
+    };
+    const ref = messagesContainerRef.current;
+    if (ref) {
+      ref.addEventListener("scroll", handleScroll);
+      return () => ref.removeEventListener("scroll", handleScroll);
+    }
+  }, [messages, isLoadingMore, hasMore, conversationId]);
 
   // Socket event listeners - FIXED for real-time messaging
   useEffect(() => {
@@ -389,7 +426,12 @@ export function ChatWindow({
       <div className="relative flex-1 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-black" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.18),_transparent_55%)]" />
-        <div className="relative h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        <div ref={messagesContainerRef} className="relative h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+          {isLoadingMore && (
+            <div className="flex items-center justify-center py-2">
+              <Loader2 className="w-6 h-6 animate-spin text-white/60" />
+            </div>
+          )}
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-center text-white/70 px-4">
               <p className="text-sm sm:text-base">No messages yet. Say hi and break the ice.</p>
