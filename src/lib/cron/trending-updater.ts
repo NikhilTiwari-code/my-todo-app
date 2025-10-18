@@ -14,7 +14,7 @@ import { emitTrendingUpdate } from '@/lib/socket/trending-socket';
 
 let isRunning = false;
 let lastRun: Date | null = null;
-let cronJob: cron.ScheduledTask | null = null;
+let cronJob: ReturnType<typeof cron.schedule> | null = null;
 
 /**
  * Update trending data and emit to Socket.io clients

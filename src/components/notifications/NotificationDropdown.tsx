@@ -141,7 +141,7 @@ export function NotificationDropdown({ onClose, onMarkAllRead }: NotificationDro
             </div>
             <p className="text-gray-600 dark:text-gray-400 font-medium">No notifications yet</p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
-              You'll see notifications here when someone interacts with your content
+              You&apos;ll see notifications here when someone interacts with your content
             </p>
           </div>
         ) : (

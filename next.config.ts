@@ -5,14 +5,14 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   
   // ⚡ Performance Optimizations
-  swcMinify: true, // Use SWC for faster minification
   reactStrictMode: true, // Enable React strict mode
+  
+  // External packages for server components
+  serverExternalPackages: ['mongoose', 'bcryptjs'],
   
   // ⚡ Faster builds with caching
   experimental: {
     optimizePackageImports: ['framer-motion', 'lucide-react', 'react-hot-toast'],
-    // Optimize server component rendering
-    serverComponentsExternalPackages: ['mongoose', 'bcryptjs'],
   },
   
   // ⚡ Development mode optimizations

@@ -110,11 +110,8 @@ export async function GET(req: NextRequest) {
         trendingQuery.category = category;
       }
 
-      const trending = await TrendingTopic.find(
-        trendingQuery,
-        { score: { $meta: 'textScore' } }
-      )
-        .sort({ score: { $meta: 'textScore' } })
+      const trending = await TrendingTopic.find(trendingQuery)
+        .sort({ trendingScore: -1 })
         .limit(limit)
         .lean();
 

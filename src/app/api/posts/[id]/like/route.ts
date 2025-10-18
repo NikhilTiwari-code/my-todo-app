@@ -9,7 +9,7 @@ import { createNotification } from "@/utils/notifications";
 // POST - Toggle like on post
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await getUserIdFromRequest(req);
@@ -20,12 +20,13 @@ export async function POST(
 
     await connectToDb();
 
-    const result = await Post.toggleLike(params.id, userId);
+    const { id } = await params;
+    const result = await Post.toggleLike(id, userId);
 
     // Create notification when post is liked (not on unlike)
     if (result.isLiked) {
       try {
-        const post = await Post.findById(params.id).select('userId').lean();
+        const post = await Post.findById(id).select('userId').lean();
         
         if (post && post.userId) {
           // Send notification asynchronously (don't block the response)
@@ -33,7 +34,7 @@ export async function POST(
             recipientId: post.userId.toString(),
             senderId: userId,
             type: "LIKE",
-            postId: params.id,
+            postId: id,
           }).catch(err => {
             // Log error but don't fail the like operation
             console.error("Failed to create like notification:", err);

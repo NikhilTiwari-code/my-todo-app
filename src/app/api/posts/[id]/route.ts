@@ -7,12 +7,10 @@ import Post from "@/models/post.model";
 import Comment from "@/models/comment.model";
 import { deleteMultipleFromCloudinary, getPublicIdFromUrl } from "@/lib/cloudinary";
 
-
-
 // GET - Get single post by ID
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await getUserIdFromRequest(req);
@@ -23,7 +21,8 @@ export async function GET(
 
     await connectToDb();
 
-    const post = await Post.getPostById(params.id);
+    const { id } = await params;
+    const post = await Post.getPostById(id);
 
     if (!post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
@@ -57,7 +56,7 @@ export async function GET(
 // DELETE - Delete post (only owner)
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await getUserIdFromRequest(req);
@@ -68,7 +67,8 @@ export async function DELETE(
 
     await connectToDb();
 
-    const post = await Post.findById(params.id);
+    const { id } = await params;
+    const post = await Post.findById(id);
 
     if (!post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
@@ -80,7 +80,7 @@ export async function DELETE(
     }
 
     // Delete all comments for this post
-    await Comment.deleteMany({ postId: params.id });
+    await Comment.deleteMany({ postId: id });
 
     // Delete images from Cloudinary
     const publicIds = post.images.map((url: string) => getPublicIdFromUrl(url));
@@ -105,7 +105,7 @@ export async function DELETE(
 // PATCH - Update post (caption only, owner only)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await getUserIdFromRequest(req);
@@ -116,7 +116,8 @@ export async function PATCH(
 
     await connectToDb();
 
-    const post = await Post.findById(params.id);
+    const { id } = await params;
+    const post = await Post.findById(id);
 
     if (!post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });

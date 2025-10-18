@@ -34,7 +34,7 @@ export function ProfileGrid({ items, onItemClick }: ProfileGridProps) {
           No posts yet
         </h3>
         <p className="text-gray-500 dark:text-gray-400 text-center">
-          When you share photos or videos, they'll appear here.
+          When you share photos or videos, they&apos;ll appear here.
         </p>
       </div>
     );

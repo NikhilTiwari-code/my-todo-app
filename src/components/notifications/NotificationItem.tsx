@@ -110,7 +110,7 @@ export function NotificationItem({ notification, onRead }: NotificationItemProps
           
           {notification.message && (
             <p className="text-sm text-gray-600 dark:text-gray-400 truncate mt-1">
-              "{notification.message}"
+              &quot;{notification.message}&quot;
             </p>
           )}
           

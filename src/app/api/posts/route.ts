@@ -7,6 +7,7 @@ import Post from "@/models/post.model";
 import User from "@/models/user.models";
 import { uploadMultipleToCloudinary } from "@/lib/cloudinary";
 import { notifyFollowersAboutNewPost } from "@/utils/notifications";
+import { notifyMentionedUsers } from "@/utils/mentions";
 
 // GET - Get feed posts
 export async function GET(req: NextRequest) {
@@ -101,6 +102,17 @@ export async function POST(req: NextRequest) {
     // Populate user data
     await post.populate("userId", "name username avatar");
 
+    // Notify mentioned users in caption (async, non-blocking)
+    if (caption) {
+      notifyMentionedUsers(
+        caption,
+        userId,
+        (post as any)._id.toString()
+      ).catch(err => {
+        console.error("Failed to notify mentioned users:", err);
+      });
+    }
+
     // Notify all followers about the new post (async, non-blocking)
     try {
       const postAuthor = await User.findById(userId).select('followers').lean();
@@ -110,7 +122,7 @@ export async function POST(req: NextRequest) {
         // Send notifications asynchronously (don't block response)
         notifyFollowersAboutNewPost(
           userId,
-          post._id.toString(),
+          (post as any)._id.toString(),
           followerIds,
           caption
         ).catch(err => {

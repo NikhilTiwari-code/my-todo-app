@@ -192,10 +192,9 @@ TrendingTopicSchema.statics.getTrendingByCategory = async function(category: str
  */
 TrendingTopicSchema.statics.searchTopics = async function(query: string, limit: number = 20) {
   return this.find(
-    { $text: { $search: query } },
-    { score: { $meta: 'textScore' } }
+    { $text: { $search: query } }
   )
-    .sort({ score: { $meta: 'textScore' } })
+    .sort({ trendingScore: -1 })
     .limit(limit)
     .lean();
 };

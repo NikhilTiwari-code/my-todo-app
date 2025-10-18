@@ -8,7 +8,7 @@ import Post from "@/models/post.model";
 // POST - Toggle save on post
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await getUserIdFromRequest(req);
@@ -19,7 +19,8 @@ export async function POST(
 
     await connectToDb();
 
-    const result = await Post.toggleSave(params.id, userId);
+    const { id } = await params;
+    const result = await Post.toggleSave(id, userId);
 
     return NextResponse.json({
       success: true,

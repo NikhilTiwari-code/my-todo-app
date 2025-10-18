@@ -223,10 +223,9 @@ export async function searchTrending(query: string, limit: number = 20) {
     await connectToDb();
     
     return await TrendingTopic.find(
-      { $text: { $search: query } },
-      { score: { $meta: 'textScore' } }
+      { $text: { $search: query } }
     )
-      .sort({ score: { $meta: 'textScore' } })
+      .sort({ trendingScore: -1 })
       .limit(limit)
       .lean();
   } catch (error: any) {

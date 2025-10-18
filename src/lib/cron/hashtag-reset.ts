@@ -11,8 +11,8 @@ import cron from 'node-cron';
 import HashtagStats from '@/models/hashtagStats.model';
 import connectToDb from '@/utils/db';
 
-let dailyJob: cron.ScheduledTask | null = null;
-let weeklyJob: cron.ScheduledTask | null = null;
+let dailyJob: ReturnType<typeof cron.schedule> | null = null;
+let weeklyJob: ReturnType<typeof cron.schedule> | null = null;
 
 /**
  * Reset daily hashtag counters

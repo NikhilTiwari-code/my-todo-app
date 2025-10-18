@@ -6,11 +6,12 @@ import connectToDb from "@/utils/db";
 import Comment from "@/models/comment.model";
 import Post from "@/models/post.model";
 import { createNotification } from "@/utils/notifications";
+import { notifyMentionedUsers } from "@/utils/mentions";
 
 // GET - Get comments for a post
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await getUserIdFromRequest(req);
@@ -21,11 +22,12 @@ export async function GET(
 
     await connectToDb();
 
+    const { id } = await params;
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
 
-    const comments = await Comment.getPostComments(params.id, page, limit);
+    const comments = await Comment.getPostComments(id, page, limit);
 
     // Add isLiked flag for current user
     const commentsWithFlags = comments.map((comment: any) => ({
@@ -54,7 +56,7 @@ export async function GET(
 // POST - Create comment
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await getUserIdFromRequest(req);
@@ -65,6 +67,7 @@ export async function POST(
 
     await connectToDb();
 
+    const { id } = await params;
     const body = await req.json();
     const { text, parentCommentId } = body;
 
@@ -76,17 +79,27 @@ export async function POST(
     }
 
     // Check if post exists
-    const post = await Post.findById(params.id);
+    const post = await Post.findById(id);
     if (!post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
     // Create comment
     const comment = await Comment.createComment({
-      postId: params.id,
+      postId: id,
       userId: userId,
       text: text.trim(),
       parentCommentId: parentCommentId || undefined,
+    });
+
+    // Notify mentioned users in comment (async, non-blocking)
+    notifyMentionedUsers(
+      text.trim(),
+      userId,
+      id,
+      (comment as any)._id.toString()
+    ).catch(err => {
+      console.error("Failed to notify mentioned users:", err);
     });
 
     // Create notification for comment (asynchronous, non-blocking)
@@ -108,8 +121,8 @@ export async function POST(
         recipientId,
         senderId: userId,
         type: notificationType,
-        postId: params.id,
-        commentId: comment._id.toString(),
+        postId: id,
+        commentId: (comment as any)._id.toString(),
         message: text.trim().substring(0, 100), // First 100 chars as preview
       }).catch(err => {
         console.error("Failed to create comment notification:", err);
