@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/utils/auth";
 import connectToDb from "@/utils/db";
 import Post from "@/models/post.model";
+import { createNotification } from "@/utils/notifications";
 
 // POST - Toggle like on post
 export async function POST(
@@ -21,14 +22,28 @@ export async function POST(
 
     const result = await Post.toggleLike(params.id, userId);
 
-    // TODO: Send real-time notification via Socket.IO
-    // if (result.isLiked) {
-    //   const post = await Post.findById(params.id);
-    //   io.to(`user:${post.userId}`).emit("post-liked", {
-    //     postId: params.id,
-    //     userId: session.user.id,
-    //   });
-    // }
+    // Create notification when post is liked (not on unlike)
+    if (result.isLiked) {
+      try {
+        const post = await Post.findById(params.id).select('userId').lean();
+        
+        if (post && post.userId) {
+          // Send notification asynchronously (don't block the response)
+          createNotification({
+            recipientId: post.userId.toString(),
+            senderId: userId,
+            type: "LIKE",
+            postId: params.id,
+          }).catch(err => {
+            // Log error but don't fail the like operation
+            console.error("Failed to create like notification:", err);
+          });
+        }
+      } catch (notifError) {
+        // Notification failure shouldn't affect the like operation
+        console.error("Error in notification flow:", notifError);
+      }
+    }
 
     return NextResponse.json({
       success: true,

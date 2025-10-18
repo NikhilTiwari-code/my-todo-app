@@ -3,6 +3,7 @@ import connectToDb from "@/utils/db";
 import User from "@/models/user.models";
 import { getServerSession } from "@/utils/auth";
 import { isValidObjectId } from "mongoose";
+import { createNotification } from "@/utils/notifications";
 
 // POST - Follow a user
 export async function POST(
@@ -70,6 +71,16 @@ export async function POST(
     const updatedUser = await User.findById(userId);
     const followersCount = updatedUser?.followers.length || 0;
     const followingCount = updatedUser?.following.length || 0;
+
+    // Create follow notification (asynchronous, non-blocking)
+    createNotification({
+      recipientId: userId,
+      senderId: currentUserId,
+      type: "FOLLOW",
+    }).catch(err => {
+      // Log but don't fail the follow operation
+      console.error("Failed to create follow notification:", err);
+    });
 
     return NextResponse.json(
       {

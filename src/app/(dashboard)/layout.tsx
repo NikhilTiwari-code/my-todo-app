@@ -8,6 +8,7 @@ import AuthGuard from "@/components/auth/AuthGuard";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserAvatar } from "@/components/users/UserAvatar";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({
@@ -206,8 +207,9 @@ export default function DashboardLayout({
                 {navigation.find(item => item.href === pathname)?.name || "Dashboard"}
               </h2>
 
-              {/* Theme Toggle on Right */}
-              <div className="top-header-actions ml-auto">
+              {/* Notifications & Theme Toggle */}
+              <div className="top-header-actions ml-auto flex items-center gap-2">
+                <NotificationBell />
                 <ThemeToggle />
               </div>
             </div>

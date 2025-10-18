@@ -129,4 +129,8 @@ export const cacheKeys = {
   todosList: (userId: string, queryHash: string) => `todos:list:${userId}:${queryHash}`,
   todo: (todoId: string) => `todos:item:${todoId}`,
   userTodos: (userId: string) => `todos:user:${userId}:*`,
+  
+  // Notifications
+  notifications: (userId: string) => `notifications:${userId}`,
+  notificationCount: (userId: string) => `notifications:count:${userId}`,
 };

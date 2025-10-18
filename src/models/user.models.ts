@@ -94,8 +94,8 @@ const userSchema:Schema<IUser> = new Schema({
     timestamps:true
 });
 
-// Index for email (unique and frequently queried)
-userSchema.index({ email: 1 }, { unique: true });
+// Note: Email index already created via 'unique: true' in schema (line 38)
+// No need for duplicate index definition
 
 
 // Method to compare entered password with hashed password

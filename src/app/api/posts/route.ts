@@ -6,6 +6,7 @@ import connectToDb from "@/utils/db";
 import Post from "@/models/post.model";
 import User from "@/models/user.models";
 import { uploadMultipleToCloudinary } from "@/lib/cloudinary";
+import { notifyFollowersAboutNewPost } from "@/utils/notifications";
 
 // GET - Get feed posts
 export async function GET(req: NextRequest) {
@@ -100,8 +101,26 @@ export async function POST(req: NextRequest) {
     // Populate user data
     await post.populate("userId", "name username avatar");
 
-    // TODO: Send real-time notification to followers via Socket.IO
-    // io.to(`user:${followerId}`).emit("new-post", { post });
+    // Notify all followers about the new post (async, non-blocking)
+    try {
+      const postAuthor = await User.findById(userId).select('followers').lean();
+      if (postAuthor?.followers && postAuthor.followers.length > 0) {
+        const followerIds = postAuthor.followers.map((id: any) => id.toString());
+        
+        // Send notifications asynchronously (don't block response)
+        notifyFollowersAboutNewPost(
+          userId,
+          post._id.toString(),
+          followerIds,
+          caption
+        ).catch(err => {
+          console.error("Failed to notify followers:", err);
+        });
+      }
+    } catch (notifError) {
+      // Notification failure shouldn't affect post creation
+      console.error("Error in new post notification flow:", notifError);
+    }
 
     return NextResponse.json({
       success: true,

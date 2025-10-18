@@ -9,7 +9,6 @@ import { formatDistanceToNow } from "date-fns";
 import {
   Heart,
   MessageCircle,
-  Send,
   Bookmark,
   MoreHorizontal,
 } from "lucide-react";
@@ -17,6 +16,7 @@ import PostImages from "./PostImages";
 import PostComments from "./PostComments";
 import LikeAnimation from "./LikeAnimation";
 import HashtagText from "./HashtagText";
+import { ShareButton } from "../share/ShareButton";
 
 interface Post {
   _id: string;
@@ -33,6 +33,7 @@ interface Post {
   };
   likeCount: number;
   commentCount: number;
+  shareCount?: number;
   isLiked: boolean;
   isSaved: boolean;
   createdAt: string;
@@ -213,9 +214,7 @@ export default function PostCard({
             >
               <MessageCircle className="w-6 h-6" />
             </button>
-            <button className="hover:opacity-70 transition">
-              <Send className="w-6 h-6" />
-            </button>
+            <ShareButton postId={post._id} shareCount={post.shareCount || 0} variant="icon" />
           </div>
           <button
             onClick={handleSave}

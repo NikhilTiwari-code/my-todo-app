@@ -224,6 +224,17 @@ io.on("connection", (socket) => {
     });
   });
 
+  // Notification events (for backend to push notifications)
+  socket.on("notification:emit", ({ recipientId, notification }) => {
+    console.log(`🔔 Emitting notification to user ${recipientId}`);
+    io.to(`user:${recipientId}`).emit("notification", notification);
+  });
+
+  socket.on("notification:count", ({ recipientId, count }) => {
+    console.log(`📊 Emitting notification count to user ${recipientId}: ${count}`);
+    io.to(`user:${recipientId}`).emit("notification:count", count);
+  });
+
   // Disconnect handler
   socket.on("disconnect", () => {
     console.log(`❌ User disconnected: ${userId}`);
@@ -245,3 +256,6 @@ io.on("connection", (socket) => {
 server.listen(PORT, () => {
   console.log(`🚀 Socket.io server running on port ${PORT}`);
 });
+
+// Export for use in API routes (if running in same process)
+module.exports = { io, server, onlineUsers };

@@ -18,6 +18,7 @@ export interface IPost extends Document {
   likes: mongoose.Types.ObjectId[]; // Array of user IDs who liked
   commentCount: number; // Denormalized for performance
   savedBy: mongoose.Types.ObjectId[]; // Users who saved this post
+  shareCount: number; // Number of times shared
   hashtags: string[]; // Extracted from caption
   isArchived: boolean;
   createdAt: Date;
@@ -68,6 +69,11 @@ const PostSchema = new Schema<IPost>(
         ref: "User",
       },
     ],
+    shareCount: {
+      type: Number,
+      default: 0,
+      index: true, // For "most shared" queries
+    },
     hashtags: [String],
     isArchived: {
       type: Boolean,

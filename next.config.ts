@@ -11,7 +11,18 @@ const nextConfig: NextConfig = {
   // ⚡ Faster builds with caching
   experimental: {
     optimizePackageImports: ['framer-motion', 'lucide-react', 'react-hot-toast'],
+    // Optimize server component rendering
+    serverComponentsExternalPackages: ['mongoose', 'bcryptjs'],
   },
+  
+  // ⚡ Development mode optimizations
+  ...(process.env.NODE_ENV === 'development' && {
+    // Faster refresh in development
+    onDemandEntries: {
+      maxInactiveAge: 60 * 1000, // 1 minute
+      pagesBufferLength: 5,
+    },
+  }),
   
   // Image optimization
   images: {

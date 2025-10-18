@@ -5,6 +5,7 @@ import { getUserIdFromRequest } from "@/utils/auth";
 import connectToDb from "@/utils/db";
 import Comment from "@/models/comment.model";
 import Post from "@/models/post.model";
+import { createNotification } from "@/utils/notifications";
 
 // GET - Get comments for a post
 export async function GET(
@@ -88,11 +89,34 @@ export async function POST(
       parentCommentId: parentCommentId || undefined,
     });
 
-    // TODO: Send real-time notification via Socket.IO
-    // io.to(`user:${post.userId}`).emit("new-comment", {
-    //   postId: params.id,
-    //   comment,
-    // });
+    // Create notification for comment (asynchronous, non-blocking)
+    try {
+      const notificationType = parentCommentId ? "REPLY" : "COMMENT";
+      
+      // Determine recipient: parent comment author for replies, post author for comments
+      let recipientId = post.userId.toString();
+      
+      if (parentCommentId) {
+        const parentComment = await Comment.findById(parentCommentId).select('userId').lean();
+        if (parentComment?.userId) {
+          recipientId = parentComment.userId.toString();
+        }
+      }
+      
+      // Send notification asynchronously
+      createNotification({
+        recipientId,
+        senderId: userId,
+        type: notificationType,
+        postId: params.id,
+        commentId: comment._id.toString(),
+        message: text.trim().substring(0, 100), // First 100 chars as preview
+      }).catch(err => {
+        console.error("Failed to create comment notification:", err);
+      });
+    } catch (notifError) {
+      console.error("Error in comment notification flow:", notifError);
+    }
 
     return NextResponse.json({
       success: true,
