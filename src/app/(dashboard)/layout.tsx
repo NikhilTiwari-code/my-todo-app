@@ -25,6 +25,7 @@ export default function DashboardLayout({
     { name: "Feed", href: "/feed", icon: "📱" },
     { name: "Reels", href: "/reels", icon: "🎬" },
     { name: "Stories", href: "/stories", icon: "📸" },
+    { name: "Trending", href: "/trending", icon: "🔥" },
     { name: "Friends", href: "/friends", icon: "👥" },
     { name: "Messages", href: "/messages", icon: "💬" },
     { name: "Profile", href: "/profile", icon: "👤" },

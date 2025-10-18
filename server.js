@@ -208,6 +208,23 @@ app.prepare().then(() => {
     });
   });
 
+  // Initialize trending cron jobs (in production only)
+  // Note: Uncomment this when you want to enable automated trending updates
+  // if (!dev) {
+  //   try {
+  //     // Dynamically import TypeScript files
+  //     import('./src/lib/cron/trending-updater.js').then(module => {
+  //       module.startTrendingCronJob();
+  //     });
+  //     import('./src/lib/cron/hashtag-reset.js').then(module => {
+  //       module.startHashtagResetJobs();
+  //     });
+  //     console.log('✅ Trending cron jobs initialized');
+  //   } catch (error) {
+  //     console.error('❌ Failed to start cron jobs:', error.message);
+  //   }
+  // }
+
   server.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`);
     console.log(`> Socket.io server running`);
