@@ -7,20 +7,20 @@
 
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect } from 'react';
 import { Loader2, RefreshCw, TrendingUp } from 'lucide-react';
 import TrendingCard from '@/components/trending/TrendingCard';
 import CategoryTabs from '@/components/trending/CategoryTabs';
 import SearchBar from '@/components/trending/SearchBar';
 import TestFetchButton from './test-fetch';
-import { io, Socket } from 'socket.io-client';
 
 export default function TrendingPage() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [trendingData, setTrendingData] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Fetch trending data

@@ -1,11 +1,9 @@
-// "use client";
-
-
 "use client";
 
 import { createContext, useContext, useEffect, useState, useRef } from "react";
-import { io, Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import { useAuth } from "./AuthContext";
+import { createSocket } from "@/lib/socket-client";
 
 interface SocketContextType {
   socket: Socket | null;
@@ -114,8 +112,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         
         console.log("🔗 Connecting to socket server:", socketUrl);
         
-        // Initialize Socket.io connection
-        socketInstance = io(socketUrl, {
+        // Initialize Socket.io connection with dynamic import
+        socketInstance = await createSocket(socketUrl, {
           auth: {
             token,
           },

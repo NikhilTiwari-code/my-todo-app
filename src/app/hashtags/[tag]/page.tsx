@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
 import { use } from "react";
 import { Hash, Grid3x3, TrendingUp, Clock } from "lucide-react";

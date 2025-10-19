@@ -7,7 +7,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
+import { createSocket } from '@/lib/socket-client';
 
 export function useTrendingSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -22,43 +23,64 @@ export function useTrendingSocket() {
       return;
     }
 
-    // Initialize Socket.io connection
-    const newSocket = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-    });
+    // Initialize Socket.io connection with dynamic import
+    let isMounted = true;
+    
+    const initSocket = async () => {
+      try {
+        const newSocket = await createSocket(
+          process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+          {
+            auth: { token },
+            transports: ['websocket', 'polling'],
+          }
+        );
+        
+        if (!isMounted) {
+          newSocket.disconnect();
+          return;
+        }
 
-    newSocket.on('connect', () => {
-      console.log('✅ Connected to Socket.io');
-      setConnected(true);
-    });
+        newSocket.on('connect', () => {
+          console.log('✅ Connected to Socket.io');
+          setConnected(true);
+        });
 
-    newSocket.on('disconnect', () => {
-      console.log('❌ Disconnected from Socket.io');
-      setConnected(false);
-    });
+        newSocket.on('disconnect', () => {
+          console.log('❌ Disconnected from Socket.io');
+          setConnected(false);
+        });
 
-    // Listen for trending updates
-    newSocket.on('trending:update', (data) => {
-      console.log('📡 Trending update received:', data);
-      setTrendingUpdate(data);
-    });
+        // Listen for trending updates
+        newSocket.on('trending:update', (data) => {
+          console.log('📡 Trending update received:', data);
+          setTrendingUpdate(data);
+        });
 
-    newSocket.on('trending:refresh', (data) => {
-      console.log('🔄 Trending refresh signal:', data);
-      setTrendingUpdate({ ...data, type: 'refresh' });
-    });
+        newSocket.on('trending:refresh', (data) => {
+          console.log('🔄 Trending refresh signal:', data);
+          setTrendingUpdate({ ...data, type: 'refresh' });
+        });
 
-    newSocket.on('trending:category-update', (data) => {
-      console.log('📡 Category update received:', data);
-      setTrendingUpdate({ ...data, type: 'category' });
-    });
+        newSocket.on('trending:category-update', (data) => {
+          console.log('📡 Category update received:', data);
+          setTrendingUpdate({ ...data, type: 'category' });
+        });
 
-    setSocket(newSocket);
+        setSocket(newSocket);
+      } catch (error) {
+        console.error('Failed to initialize socket:', error);
+      }
+    };
+    
+    initSocket();
 
     // Cleanup on unmount
     return () => {
-      newSocket.disconnect();
+      isMounted = false;
+      if (socket) {
+        socket.disconnect();
+      }
     };
   }, []);
 

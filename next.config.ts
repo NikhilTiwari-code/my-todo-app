@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true, // Enable React strict mode
   
   // External packages for server components
-  serverExternalPackages: ['mongoose', 'bcryptjs'],
+  serverExternalPackages: ['mongoose', 'bcryptjs', 'socket.io-client', 'simple-peer'],
   
   // ⚡ Faster builds with caching
   experimental: {
@@ -105,6 +105,31 @@ const nextConfig: NextConfig = {
   
   // ⚡ Webpack optimizations for faster compilation
   webpack: (config, { dev, isServer }) => {
+    // Fix for "self is not defined" error with client-only packages
+    if (isServer) {
+      // Add fallbacks for Node.js modules not available in browser
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        os: false,
+        path: false,
+      };
+    }
+    
+    // Client-side fallbacks
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+      };
+    }
+    
     // Optimize builds
     if (!dev) {
       config.optimization = {
