@@ -159,7 +159,7 @@ export function VideoCall({
     if (!socket || !peerConnectionRef.current) return;
 
     // Handle incoming call answer
-    socket.on("call:answered", async ({ answer }) => {
+    socket.on("call:answered", async ({ answer }: any) => {
       console.log("✅ Call answered");
       if (peerConnectionRef.current) {
         await peerConnectionRef.current.setRemoteDescription(
@@ -169,7 +169,7 @@ export function VideoCall({
     });
 
     // Handle incoming call (for receiver)
-    socket.on("call:incoming", async ({ offer }) => {
+    socket.on("call:incoming", async ({ offer }: any) => {
       console.log("📞 Incoming call with offer");
       if (peerConnectionRef.current) {
         await peerConnectionRef.current.setRemoteDescription(
@@ -184,7 +184,7 @@ export function VideoCall({
     });
 
     // Handle ICE candidates
-    socket.on("call:ice-candidate", async ({ candidate }) => {
+    socket.on("call:ice-candidate", async ({ candidate }: any) => {
       console.log("🧊 Received ICE candidate");
       if (peerConnectionRef.current && candidate) {
         try {

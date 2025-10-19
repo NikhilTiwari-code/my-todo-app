@@ -3,13 +3,11 @@
  * This prevents socket.io-client from being bundled in server code
  */
 
-import type { Socket } from 'socket.io-client';
-
 /**
  * Create a socket connection with dynamic import
  * Only works in browser environment
  */
-export async function createSocket(url: string, options?: any): Promise<Socket> {
+export async function createSocket(url: string, options?: any): Promise<any> {
   if (typeof window === 'undefined') {
     throw new Error('socket.io-client can only be used in browser');
   }

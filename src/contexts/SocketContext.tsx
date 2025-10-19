@@ -1,12 +1,11 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useRef } from "react";
-import type { Socket } from "socket.io-client";
 import { useAuth } from "./AuthContext";
 import { createSocket } from "@/lib/socket-client";
 
 interface SocketContextType {
-  socket: Socket | null;
+  socket: any | null;
   isConnected: boolean;
   onlineUsers: Set<string>;
 }
@@ -21,7 +20,7 @@ export const useSocket = () => useContext(SocketContext);
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<any | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const reconnectAttempts = useRef(0);
@@ -29,7 +28,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const isInitializing = useRef(false);
 
   useEffect(() => {
-    let socketInstance: Socket | null = null;
+    let socketInstance: any | null = null;
     let reconnectTimeout: NodeJS.Timeout;
 
     const getToken = async () => {
@@ -130,7 +129,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           isInitializing.current = false;
         });
 
-        socketInstance.on("disconnect", async (reason) => {
+        socketInstance.on("disconnect", async (reason: any) => {
           console.log("❌ Socket disconnected, reason:", reason);
           setIsConnected(false);
           isInitializing.current = false;

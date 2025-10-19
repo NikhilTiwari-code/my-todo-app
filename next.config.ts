@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+// Use require to avoid TS type resolution for webpack in config file
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const webpack = require("webpack");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const path = require("path");
 
 const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployment
@@ -8,12 +13,12 @@ const nextConfig: NextConfig = {
   reactStrictMode: true, // Enable React strict mode
   
   // External packages for server components
-  serverExternalPackages: ['mongoose', 'bcryptjs', 'socket.io-client', 'simple-peer'],
+  serverExternalPackages: ['mongoose', 'bcryptjs'],
   
-  // ⚡ Faster builds with caching
-  experimental: {
-    optimizePackageImports: ['framer-motion', 'lucide-react', 'react-hot-toast'],
-  },
+  // Pin tracing root to this project (prevents parent lockfile confusion)
+  outputFileTracingRoot: path.resolve(__dirname),
+  
+  // ⚡ Faster builds with caching (no experimental optimizePackageImports to avoid SSR bundling issues)
   
   // ⚡ Development mode optimizations
   ...(process.env.NODE_ENV === 'development' && {
@@ -117,6 +122,40 @@ const nextConfig: NextConfig = {
         os: false,
         path: false,
       };
+      
+      // Ensure webpack uses a safe global object on server
+      // Avoids references to 'self' in generated bundles
+      config.output = {
+        ...config.output,
+        globalObject: 'globalThis',
+      };
+      
+      // Define global 'self' in Node.js to satisfy browser-targeted libs
+      config.plugins = config.plugins || [];
+      config.plugins.push(new webpack.DefinePlugin({
+        self: 'globalThis',
+      }));
+      // Ensure 'self' exists at top of every server chunk (including vendor)
+      config.plugins.push(new webpack.BannerPlugin({
+        banner: 'var self = globalThis;',
+        raw: true,
+        entryOnly: false,
+      }));
+      
+      // CRITICAL: Mark browser-only packages as external for server
+      // This prevents them from being bundled in server code
+      if (!config.externals) {
+        config.externals = [];
+      }
+      
+      if (Array.isArray(config.externals)) {
+        config.externals.push(({request}: any, callback: any) => {
+          if (request === 'socket.io-client' || request?.startsWith('socket.io-client/')) {
+            return callback(null, `commonjs ${request}`);
+          }
+          callback();
+        });
+      }
     }
     
     // Client-side fallbacks
@@ -130,34 +169,11 @@ const nextConfig: NextConfig = {
       };
     }
     
-    // Optimize builds
-    if (!dev) {
+    // Optimize builds (client only). Avoid custom splitChunks on server to prevent vendor.js SSR issues
+    if (!dev && !isServer) {
       config.optimization = {
         ...config.optimization,
         moduleIds: 'deterministic',
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            default: false,
-            vendors: false,
-            // Vendor chunk
-            vendor: {
-              name: 'vendor',
-              chunks: 'all',
-              test: /node_modules/,
-              priority: 20
-            },
-            // Common chunk
-            common: {
-              name: 'common',
-              minChunks: 2,
-              chunks: 'all',
-              priority: 10,
-              reuseExistingChunk: true,
-              enforce: true
-            }
-          }
-        }
       };
     }
     

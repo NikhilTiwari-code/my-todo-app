@@ -7,11 +7,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Socket } from 'socket.io-client';
 import { createSocket } from '@/lib/socket-client';
 
 export function useTrendingSocket() {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<any | null>(null);
   const [connected, setConnected] = useState(false);
   const [trendingUpdate, setTrendingUpdate] = useState<any>(null);
 
@@ -52,17 +51,17 @@ export function useTrendingSocket() {
         });
 
         // Listen for trending updates
-        newSocket.on('trending:update', (data) => {
+        newSocket.on('trending:update', (data: any) => {
           console.log('📡 Trending update received:', data);
           setTrendingUpdate(data);
         });
 
-        newSocket.on('trending:refresh', (data) => {
+        newSocket.on('trending:refresh', (data: any) => {
           console.log('🔄 Trending refresh signal:', data);
           setTrendingUpdate({ ...data, type: 'refresh' });
         });
 
-        newSocket.on('trending:category-update', (data) => {
+        newSocket.on('trending:category-update', (data: any) => {
           console.log('📡 Category update received:', data);
           setTrendingUpdate({ ...data, type: 'category' });
         });

@@ -27,7 +27,7 @@ export function IncomingCallNotification({
     if (!socket) return;
 
     // Listen for incoming calls
-    socket.on("call:incoming", ({ callId, caller, offer }) => {
+    socket.on("call:incoming", ({ callId, caller, offer }: any) => {
       console.log("📞 Incoming call from:", caller);
       
       // Fetch caller details
@@ -64,7 +64,7 @@ export function IncomingCallNotification({
     });
 
     // Call ended by caller before answer
-    socket.on("call:ended", ({ callId: endedCallId }) => {
+    socket.on("call:ended", ({ callId: endedCallId }: any) => {
       if (incomingCall && incomingCall.callId === endedCallId) {
         setIncomingCall(null);
       }
