@@ -2,15 +2,18 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/contexts/AuthContext";
-import InfiniteScroll from "react-infinite-scroll-component";
 import PostCard from "@/components/feed/PostCard";
 import CreatePost from "@/components/feed/CreatePost";
 import { Loader2, Plus } from "lucide-react";
 
-// Type assertion for InfiniteScroll compatibility with React 19
-const InfiniteScrollComponent = InfiniteScroll as any;
+// Dynamically import InfiniteScroll with ssr disabled to avoid 'self' error
+const InfiniteScroll = dynamic(
+  () => import("react-infinite-scroll-component"),
+  { ssr: false, loading: () => <div>Loading...</div> }
+);
 
 interface Post {
   _id: string;
