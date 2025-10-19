@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/contexts/AuthContext";
 import PostCard from "@/components/feed/PostCard";
@@ -12,8 +12,10 @@ import { Loader2, Plus } from "lucide-react";
 // Dynamically import InfiniteScroll with ssr disabled to avoid 'self' error
 const InfiniteScroll = dynamic(
   () => import("react-infinite-scroll-component"),
-  { ssr: false, loading: () => <div>Loading...</div> }
-);
+  { 
+    ssr: false,
+  }
+) as any;
 
 interface Post {
   _id: string;
@@ -43,6 +45,11 @@ export default function FeedPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch initial posts
   const fetchPosts = useCallback(async (pageNum: number) => {
@@ -222,7 +229,7 @@ export default function FeedPage() {
               Create Your First Post
             </button>
           </div>
-        ) : (
+        ) : mounted ? (
           <InfiniteScroll
             dataLength={posts.length}
             next={loadMore}
@@ -252,6 +259,10 @@ export default function FeedPage() {
               ))}
             </div>
           </InfiniteScroll>
+        ) : (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          </div>
         )}
       </div>
 
