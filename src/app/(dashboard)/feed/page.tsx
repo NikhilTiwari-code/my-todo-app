@@ -9,6 +9,9 @@ import PostCard from "@/components/feed/PostCard";
 import CreatePost from "@/components/feed/CreatePost";
 import { Loader2, Plus } from "lucide-react";
 
+// Force dynamic rendering to avoid SSR issues with InfiniteScroll
+export const dynamic = 'force-dynamic';
+
 // Dynamically import InfiniteScroll with ssr disabled to avoid 'self' error
 const InfiniteScroll = dynamic(
   () => import("react-infinite-scroll-component"),
