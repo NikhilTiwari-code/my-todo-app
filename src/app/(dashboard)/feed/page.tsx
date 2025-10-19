@@ -223,7 +223,7 @@ export default function FeedPage() {
             </button>
           </div>
         ) : (
-          <InfiniteScrollComponent
+          <InfiniteScroll
             dataLength={posts.length}
             next={loadMore}
             hasMore={hasMore}
@@ -251,7 +251,7 @@ export default function FeedPage() {
                 />
               ))}
             </div>
-          </InfiniteScrollComponent>
+          </InfiniteScroll>
         )}
       </div>
 
