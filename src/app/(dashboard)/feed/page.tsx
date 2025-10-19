@@ -3,22 +3,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
 import { useAuth } from "@/contexts/AuthContext";
 import PostCard from "@/components/feed/PostCard";
 import CreatePost from "@/components/feed/CreatePost";
 import { Loader2, Plus } from "lucide-react";
 
-// Force dynamic rendering to avoid SSR issues with InfiniteScroll
+// Force dynamic rendering
 export const dynamic = 'force-dynamic';
-
-// Dynamically import InfiniteScroll with ssr disabled to avoid 'self' error
-const InfiniteScroll = dynamic(
-  () => import("react-infinite-scroll-component"),
-  { 
-    ssr: false,
-  }
-) as any;
 
 interface Post {
   _id: string;
@@ -47,12 +38,8 @@ export default function FeedPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [showCreatePost, setShowCreatePost] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Fetch initial posts
   const fetchPosts = useCallback(async (pageNum: number) => {
@@ -82,10 +69,14 @@ export default function FeedPage() {
   }, [user, authLoading, fetchPosts]);
 
   // Load more posts
-  const loadMore = () => {
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    
+    setLoadingMore(true);
     const nextPage = page + 1;
     setPage(nextPage);
-    fetchPosts(nextPage);
+    await fetchPosts(nextPage);
+    setLoadingMore(false);
   };
 
   // Handle like toggle
@@ -232,39 +223,46 @@ export default function FeedPage() {
               Create Your First Post
             </button>
           </div>
-        ) : mounted ? (
-          <InfiniteScroll
-            dataLength={posts.length}
-            next={loadMore}
-            hasMore={hasMore}
-            loader={
-              <div className="flex justify-center py-4">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+        ) : (
+          <div className="space-y-6">
+            {posts.map((post) => (
+              <PostCard
+                key={post._id}
+                post={post}
+                currentUserId={user.id}
+                onLikeToggle={handleLikeToggle}
+                onSaveToggle={handleSaveToggle}
+                onDelete={handleDelete}
+                onCommentAdded={handleCommentAdded}
+              />
+            ))}
+            
+            {/* Load More Button */}
+            {hasMore && (
+              <div className="flex justify-center py-6">
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    'Load More Posts'
+                  )}
+                </button>
               </div>
-            }
-            endMessage={
+            )}
+            
+            {/* End Message */}
+            {!hasMore && posts.length > 0 && (
               <p className="text-center text-gray-500 py-4">
                 You&apos;re all caught up! 🎉
               </p>
-            }
-          >
-            <div className="space-y-6">
-              {posts.map((post) => (
-                <PostCard
-                  key={post._id}
-                  post={post}
-                  currentUserId={user.id}
-                  onLikeToggle={handleLikeToggle}
-                  onSaveToggle={handleSaveToggle}
-                  onDelete={handleDelete}
-                  onCommentAdded={handleCommentAdded}
-                />
-              ))}
-            </div>
-          </InfiniteScroll>
-        ) : (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            )}
           </div>
         )}
       </div>
