@@ -6,6 +6,7 @@ const { parse } = require("url");
 const next = require("next");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
@@ -19,6 +20,9 @@ const onlineUsers = new Map();
 
 // Store active video calls: callId -> { caller, receiver, offer, answer }
 const activeCalls = new Map();
+
+// Live streams state: streamId -> { hostSocketId, hostUserId, title, startedAt, viewers: Set<socketId> }
+const liveStreams = new Map();
 
 app.prepare().then(() => {
   const server = createServer(async (req, res) => {
@@ -40,6 +44,13 @@ app.prepare().then(() => {
     },
   });
 
+  // Socket JWT secret - must match the one used in /api/auth/socket-token
+  const SOCKET_JWT_SECRET = process.env.SOCKET_JWT_SECRET || "6f28588fc52bdfd1c268d8ffc16fcf1f333d653a04e6ec0a065f5911938d5176";
+  
+  if (!process.env.SOCKET_JWT_SECRET) {
+    console.warn("⚠️ WARNING: Using hardcoded SOCKET_JWT_SECRET. Set SOCKET_JWT_SECRET environment variable in production!");
+  }
+
   // Socket.io authentication middleware
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
@@ -52,7 +63,7 @@ app.prepare().then(() => {
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, SOCKET_JWT_SECRET);
       console.log("✅ Token verified, decoded payload:", decoded);
       
       // Check for userId in different fields
@@ -190,6 +201,153 @@ app.prepare().then(() => {
       });
     });
 
+    // ===== LIVE STREAM EVENTS =====
+
+    // Provide list of current live streams (callback-based for simplicity)
+    socket.on("live:list", (cb) => {
+      try {
+        const list = Array.from(liveStreams.entries()).map(([streamId, s]) => ({
+          streamId,
+          title: s.title || "Live Stream",
+          hostUserId: s.hostUserId,
+          startedAt: s.startedAt,
+          viewers: s.viewers.size,
+        }));
+        if (typeof cb === "function") cb(list);
+      } catch {
+        if (typeof cb === "function") cb([]);
+      }
+    });
+
+    // Host starts a live stream
+    socket.on("live:start", async ({ title }, cb) => {
+      const streamId = crypto.randomBytes(8).toString("hex");
+      const meta = {
+        hostSocketId: socket.id,
+        hostUserId: userId,
+        title: title || "Live Stream",
+        startedAt: new Date().toISOString(),
+        viewers: new Set(),
+      };
+      liveStreams.set(streamId, meta);
+      socket.join(`live:${streamId}`);
+      if (typeof cb === "function") cb({ ok: true, streamId });
+      
+      // Notify followers that this user went live
+      try {
+        // Dynamically import User model
+        const { default: User } = await import("./src/models/user.models.js");
+        const user = await User.findById(userId).select("name followers").lean();
+        
+        if (user && user.followers && user.followers.length > 0) {
+          console.log(`📢 Notifying ${user.followers.length} followers that ${user.name} went live`);
+          
+          // Emit to each follower's socket
+          user.followers.forEach(followerId => {
+            const followerSocketId = onlineUsers.get(followerId.toString());
+            if (followerSocketId) {
+              io.to(`user:${followerId.toString()}`).emit("live:friend-started", {
+                streamId,
+                hostUserId: userId,
+                hostName: user.name,
+                title: meta.title,
+              });
+            }
+          });
+        }
+      } catch (error) {
+        console.error("❌ Error notifying followers:", error);
+      }
+      
+      // broadcast update
+      io.emit("live:update", Array.from(liveStreams.entries()).map(([id, s]) => ({
+        streamId: id,
+        title: s.title,
+        hostUserId: s.hostUserId,
+        startedAt: s.startedAt,
+        viewers: s.viewers.size,
+      })));
+    });
+
+    // Viewer joins a stream; notify host to create an offer
+    socket.on("live:join", ({ streamId }, cb) => {
+      const s = liveStreams.get(streamId);
+      if (!s) { if (typeof cb === "function") cb(false); return; }
+      s.viewers.add(socket.id);
+      socket.join(`live:${streamId}`);
+      // Tell host a viewer joined; host will create offer and target this viewer
+      io.to(s.hostSocketId).emit("live:viewer-join", { streamId, viewerSocketId: socket.id });
+      if (typeof cb === "function") cb(true);
+      // broadcast count update
+      io.emit("live:update", Array.from(liveStreams.entries()).map(([id, s2]) => ({
+        streamId: id,
+        title: s2.title,
+        hostUserId: s2.hostUserId,
+        startedAt: s2.startedAt,
+        viewers: s2.viewers.size,
+      })));
+    });
+
+    // Viewer leaves a stream explicitly
+    socket.on("live:leave", ({ streamId }) => {
+      const s = liveStreams.get(streamId);
+      if (!s) return;
+      if (s.viewers.delete(socket.id)) {
+        io.to(s.hostSocketId).emit("live:viewer-left", { streamId, viewerSocketId: socket.id });
+        socket.leave(`live:${streamId}`);
+        io.emit("live:update", Array.from(liveStreams.entries()).map(([id, s2]) => ({
+          streamId: id,
+          title: s2.title,
+          hostUserId: s2.hostUserId,
+          startedAt: s2.startedAt,
+          viewers: s2.viewers.size,
+        })));
+      }
+    });
+
+    // Host ends the live stream
+    socket.on("live:end", ({ streamId }) => {
+      const s = liveStreams.get(streamId);
+      if (!s) return;
+      if (s.hostSocketId !== socket.id) return; // only host can end
+      io.to(`live:${streamId}`).emit("live:ended", { streamId });
+      // cleanup
+      Array.from(s.viewers).forEach((vid) => io.to(vid).emit("live:ended", { streamId }));
+      liveStreams.delete(streamId);
+      socket.leave(`live:${streamId}`);
+      io.emit("live:update", Array.from(liveStreams.entries()).map(([id, s2]) => ({
+        streamId: id,
+        title: s2.title,
+        hostUserId: s2.hostUserId,
+        startedAt: s2.startedAt,
+        viewers: s2.viewers.size,
+      })));
+    });
+
+    // Signaling: host -> viewer (offer)
+    socket.on("live:signal-offer", ({ streamId, to, offer }) => {
+      if (!to) return;
+      io.to(to).emit("live:signal-offer", { streamId, offer });
+    });
+
+    // Signaling: viewer -> host (answer)
+    socket.on("live:signal-answer", ({ streamId, answer }) => {
+      const s = liveStreams.get(streamId);
+      if (!s) return;
+      io.to(s.hostSocketId).emit("live:signal-answer", { streamId, from: socket.id, answer });
+    });
+
+    // ICE candidates both directions
+    socket.on("live:signal-ice", ({ streamId, to, candidate }) => {
+      if (to) {
+        io.to(to).emit("live:signal-ice", { streamId, from: socket.id, candidate });
+        return;
+      }
+      const s = liveStreams.get(streamId);
+      if (!s) return;
+      io.to(s.hostSocketId).emit("live:signal-ice", { streamId, from: socket.id, candidate });
+    });
+
     // Disconnect handler
     socket.on("disconnect", () => {
       console.log(`❌ User disconnected: ${userId}`);
@@ -208,6 +366,24 @@ app.prepare().then(() => {
           activeCalls.delete(callId);
         }
       });
+
+      // Live stream cleanup: if host disconnects, end the stream; if viewer, remove from list and notify host
+      for (const [streamId, s] of Array.from(liveStreams.entries())) {
+        if (s.hostSocketId === socket.id) {
+          io.to(`live:${streamId}`).emit("live:ended", { streamId });
+          liveStreams.delete(streamId);
+        } else if (s.viewers.has(socket.id)) {
+          s.viewers.delete(socket.id);
+          io.to(s.hostSocketId).emit("live:viewer-left", { streamId, viewerSocketId: socket.id });
+        }
+      }
+      io.emit("live:update", Array.from(liveStreams.entries()).map(([id, s2]) => ({
+        streamId: id,
+        title: s2.title,
+        hostUserId: s2.hostUserId,
+        startedAt: s2.startedAt,
+        viewers: s2.viewers.size,
+      })));
     });
   });
 
@@ -229,7 +405,9 @@ app.prepare().then(() => {
   // }
 
   server.listen(port, () => {
-    console.log(`> Ready on http://${hostname}:${port}`);
-    console.log(`> Socket.io server running`);
+    console.log('\n' + '='.repeat(50));
+    console.log(`✅ Server ready on http://${hostname}:${port}`);
+    console.log(`✅ Socket.io server running`);
+    console.log('='.repeat(50) + '\n');
   });
 });

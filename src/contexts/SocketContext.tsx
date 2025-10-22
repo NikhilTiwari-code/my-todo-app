@@ -4,16 +4,28 @@ import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { useAuth } from "./AuthContext";
 import { createSocket } from "@/lib/socket-client";
 
+export interface LiveStreamNotification {
+  streamId: string;
+  hostUserId: string;
+  hostName: string;
+  title: string;
+  timestamp: number;
+}
+
 interface SocketContextType {
   socket: any | null;
   isConnected: boolean;
   onlineUsers: Set<string>;
+  liveNotifications: LiveStreamNotification[];
+  dismissLiveNotification: (streamId: string) => void;
 }
 
 const SocketContext = createContext<SocketContextType>({
   socket: null,
   isConnected: false,
   onlineUsers: new Set(),
+  liveNotifications: [],
+  dismissLiveNotification: () => {},
 });
 
 export const useSocket = () => useContext(SocketContext);
@@ -23,9 +35,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [socket, setSocket] = useState<any | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [liveNotifications, setLiveNotifications] = useState<LiveStreamNotification[]>([]);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
   const isInitializing = useRef(false);
+
+  const dismissLiveNotification = (streamId: string) => {
+    setLiveNotifications(prev => prev.filter(n => n.streamId !== streamId));
+  };
 
   useEffect(() => {
     let socketInstance: any | null = null;
@@ -127,6 +144,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           setIsConnected(true);
           reconnectAttempts.current = 0; // Reset reconnect attempts on successful connection
           isInitializing.current = false;
+          
+          // Join user's personal room for targeted notifications
+          if (socketInstance) {
+            socketInstance.emit('user:join-room');
+          }
         });
 
         socketInstance.on("disconnect", async (reason: any) => {
@@ -199,6 +221,28 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           setOnlineUsers(new Set(userIds));
         });
 
+        // Listen for friend going live notifications
+        socketInstance.on("live:friend-started", ({ streamId, hostUserId, hostName, title }: any) => {
+          console.log("🔴 Friend went live:", hostName);
+          const notification: LiveStreamNotification = {
+            streamId,
+            hostUserId,
+            hostName,
+            title,
+            timestamp: Date.now(),
+          };
+          setLiveNotifications(prev => {
+            // Don't add duplicate
+            if (prev.some(n => n.streamId === streamId)) return prev;
+            return [...prev, notification];
+          });
+        });
+
+        // Remove notification when stream ends
+        socketInstance.on("live:ended", ({ streamId }: { streamId: string }) => {
+          setLiveNotifications(prev => prev.filter(n => n.streamId !== streamId));
+        });
+
         setSocket(socketInstance);
       } catch (error) {
         console.error("❌ Failed to initialize socket:", error);
@@ -231,7 +275,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, isLoading]);
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected, onlineUsers }}>
+    <SocketContext.Provider value={{ socket, isConnected, onlineUsers, liveNotifications, dismissLiveNotification }}>
       {children}
     </SocketContext.Provider>
   );

@@ -30,6 +30,7 @@ export default function DashboardLayout({
     { name: "Discover", href: "/discover", icon: "🔍" },
     { name: "Reels", href: "/reels", icon: "🎬" },
     { name: "Stories", href: "/stories", icon: "📸" },
+    { name: "Live", href: "/live", icon: "🔴" },
     { name: "Trending", href: "/trending", icon: "🔥" },
     { name: "Friends", href: "/friends", icon: "👥" },
     { name: "Messages", href: "/messages", icon: "💬" },

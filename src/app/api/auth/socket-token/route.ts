@@ -25,8 +25,9 @@ export async function GET(req: NextRequest) {
 
     const userId = userResult.userId;
 
-    // If authenticated, create a short-lived token specifically for the socket server
-    const socketToken = jwt.sign({ id: userId }, SOCKET_JWT_SECRET, { expiresIn: "1m" });
+    // If authenticated, create a token specifically for the socket server
+    // Extended expiry for live streaming sessions (2 hours)
+    const socketToken = jwt.sign({ id: userId }, SOCKET_JWT_SECRET, { expiresIn: "2h" });
 
     return NextResponse.json({ token: socketToken });
   } catch (error) {

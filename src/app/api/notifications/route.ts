@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectToDb from "@/utils/db";
 import Notification from "@/models/notification.model";
-import Post from "@/models/post.model";
+// Ensure referenced models are registered for population
+import "@/models/post.model";
+import "@/models/reel.models";
+import "@/models/story.models";
+import "@/models/comment.model";
 import { getServerSession } from "@/utils/auth";
 import { cache, cacheKeys } from "@/lib/redis";
 
